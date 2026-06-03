@@ -1,0 +1,40 @@
+# Local secrets and credentials
+.env
+.env.*
+*.tfvars
+*.tfvars.json
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# Terraform local state and caches
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Python / Ansible local caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ansible/
+
+# Image build artifacts
+*.qcow2
+*.raw
+*.iso
+*.tar
+*.tar.gz
+build/
+dist/
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/

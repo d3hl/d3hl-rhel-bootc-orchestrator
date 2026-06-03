@@ -1,0 +1,180 @@
+{
+  "project": "d3hl-rhel-bootc-orchestrator",
+  "last_updated": "2026-06-04",
+  "rules": {
+    "single_active_feature": true,
+    "passing_requires_evidence": true,
+    "do_not_skip_verification": true,
+    "no_live_infrastructure_by_default": true
+  },
+  "status_legend": {
+    "not_started": "Work has not begun.",
+    "in_progress": "The feature is the current active task.",
+    "blocked": "Work cannot continue until a documented blocker is resolved.",
+    "passing": "Required verification has passed and evidence is recorded."
+  },
+  "features": [
+    {
+      "id": "BOOTC-000",
+      "priority": 1,
+      "area": "harness",
+      "title": "Create repo harness and static baseline",
+      "description": "Required harness files exist, startup rules are clear, and static validation runs without live infrastructure changes.",
+      "user_visible_behavior": "Agents can start, verify, and resume work safely in the new bootc orchestration repo.",
+      "dependencies": [],
+      "status": "passing",
+      "verification": [
+        "./init.sh succeeds",
+        "git diff --check succeeds",
+        "required harness files exist",
+        "feature_list.json parses as valid JSON",
+        "no plaintext secret patterns are present"
+      ],
+      "evidence": [
+        "2026-06-04 ./init.sh passed from /home/d3/Github/d3hl-rhel-bootc-orchestrator: required files present, feature_list.json valid, Terraform dev environment validated, Ansible checks skipped because ansible-playbook/ansible-lint are not installed, git whitespace check completed"
+      ],
+      "notes": "Initial repo contract established and statically verified. No HCP Terraform runs, AAP imports, image pushes, Quay changes, or Proxmox changes."
+    },
+    {
+      "id": "ARCH-001",
+      "priority": 2,
+      "area": "architecture",
+      "title": "Define Ansible-first flow and HCP Terraform boundary",
+      "description": "Architecture decision documents how bootc image build, registry publication, HCP Terraform provisioning, and Ansible/AAP orchestration interact.",
+      "user_visible_behavior": "Operators and agents know which system owns each lifecycle step before implementation begins.",
+      "dependencies": [
+        "BOOTC-000"
+      ],
+      "status": "not_started",
+      "verification": [
+        "architecture ADR exists under docs/architecture",
+        "ADR names the owner for image build, registry, HCP Terraform, and Ansible/AAP responsibilities",
+        "./init.sh succeeds"
+      ],
+      "evidence": [],
+      "notes": "Use current official docs for RHEL image mode, HCP Terraform workspaces, AAP workflows, and Quay/private registry behavior."
+    },
+    {
+      "id": "REGISTRY-001",
+      "priority": 3,
+      "area": "registry",
+      "title": "Define Quay/private registry contract",
+      "description": "Registry namespace, repository naming, robot/service account references, image promotion, and pull/push permissions are documented without plaintext secrets.",
+      "user_visible_behavior": "Agents can generate image tags and credential references consistently before any image push is implemented.",
+      "dependencies": [
+        "ARCH-001"
+      ],
+      "status": "not_started",
+      "verification": [
+        "registry contract exists under registry/",
+        "credential references use op://d3HLPRV/... placeholders only",
+        "./init.sh succeeds"
+      ],
+      "evidence": [],
+      "notes": "No repository creation or image push in this feature."
+    },
+    {
+      "id": "IMAGE-001",
+      "priority": 4,
+      "area": "image",
+      "title": "Define bootc image build inputs and validation",
+      "description": "bootc Containerfile template, image build variables, validation checklist, and artifact metadata contract are scaffolded.",
+      "user_visible_behavior": "Operators can review exactly what inputs are needed to build a RHEL image-mode artifact.",
+      "dependencies": [
+        "ARCH-001",
+        "REGISTRY-001"
+      ],
+      "status": "not_started",
+      "verification": [
+        "Containerfile template exists under images/",
+        "image validation checklist exists",
+        "./init.sh succeeds"
+      ],
+      "evidence": [],
+      "notes": "No bootc image build or push in this feature."
+    },
+    {
+      "id": "TF-001",
+      "priority": 5,
+      "area": "terraform",
+      "title": "Scaffold HCP Terraform Proxmox-first provisioning contract",
+      "description": "Terraform environment and module skeletons describe Proxmox-first bootc VM resources without live apply.",
+      "user_visible_behavior": "Provisioning shape is reviewable as code before HCP Terraform integration is enabled.",
+      "dependencies": [
+        "ARCH-001"
+      ],
+      "status": "not_started",
+      "verification": [
+        "terraform fmt -check -recursive succeeds",
+        "terraform validate succeeds with backend disabled where environments exist",
+        "./init.sh succeeds"
+      ],
+      "evidence": [],
+      "notes": "No live HCP Terraform plan or apply in this feature."
+    },
+    {
+      "id": "ANSIBLE-001",
+      "priority": 6,
+      "area": "ansible",
+      "title": "Scaffold Ansible and AAP orchestration shape",
+      "description": "Inventory, playbook, role, and AAP workflow export skeletons cover build, publish, provision, and validation stages.",
+      "user_visible_behavior": "The orchestration sequence is visible and syntax-checkable before live automation is imported.",
+      "dependencies": [
+        "ARCH-001",
+        "IMAGE-001",
+        "TF-001"
+      ],
+      "status": "not_started",
+      "verification": [
+        "ansible-playbook --syntax-check succeeds where Ansible is installed",
+        "AAP workflow export is documented as non-live",
+        "./init.sh succeeds"
+      ],
+      "evidence": [],
+      "notes": "No AAP workflow import or job launch in this feature."
+    },
+    {
+      "id": "CI-001",
+      "priority": 7,
+      "area": "ci",
+      "title": "Add GitHub Actions static checks",
+      "description": "CI runs static shell, JSON, Terraform, and Ansible checks without live deploy credentials.",
+      "user_visible_behavior": "Pull requests get fast feedback before any live integration is added.",
+      "dependencies": [
+        "BOOTC-000",
+        "TF-001",
+        "ANSIBLE-001"
+      ],
+      "status": "not_started",
+      "verification": [
+        "GitHub Actions workflow exists",
+        "workflow has no live deploy/apply/import/push step",
+        "./init.sh succeeds"
+      ],
+      "evidence": [],
+      "notes": "CI must not require HCP, AAP, Quay, Red Hat, or Proxmox secrets for static validation."
+    },
+    {
+      "id": "E2E-001",
+      "priority": 8,
+      "area": "validation",
+      "title": "Define non-mutating Proxmox-first end-to-end validation plan",
+      "description": "End-to-end validation runbook documents read-only checks for image, registry, HCP Terraform handoff, Ansible/AAP workflow state, and Proxmox target readiness.",
+      "user_visible_behavior": "Operators know how to prove the full flow is ready before enabling live deployment.",
+      "dependencies": [
+        "REGISTRY-001",
+        "IMAGE-001",
+        "TF-001",
+        "ANSIBLE-001"
+      ],
+      "status": "not_started",
+      "verification": [
+        "E2E validation runbook exists",
+        "runbook separates read-only checks from live apply/import/push actions",
+        "./init.sh succeeds"
+      ],
+      "evidence": [],
+      "notes": "Live deployment remains out of scope until separately approved."
+    }
+  ]
+}

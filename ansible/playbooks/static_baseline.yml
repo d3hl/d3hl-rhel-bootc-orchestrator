@@ -1,0 +1,9 @@
+---
+- name: Static baseline placeholder
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Show that live orchestration is not implemented yet
+      ansible.builtin.debug:
+        msg: "Static baseline only; no HCP, AAP, Quay, image push, or Proxmox mutation."
+      changed_when: false

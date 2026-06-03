@@ -1,0 +1,7 @@
+---
+all:
+  children:
+    bootc_builders:
+      hosts: {}
+    bootc_targets:
+      hosts: {}
