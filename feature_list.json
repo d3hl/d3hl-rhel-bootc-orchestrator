@@ -1,6 +1,6 @@
 {
   "project": "d3hl-rhel-bootc-orchestrator",
-  "last_updated": "2026-06-04",
+  "last_updated": "2026-06-06",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -45,14 +45,16 @@
       "dependencies": [
         "BOOTC-000"
       ],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "architecture ADR exists under docs/architecture",
         "ADR names the owner for image build, registry, HCP Terraform, and Ansible/AAP responsibilities",
         "./init.sh succeeds"
       ],
-      "evidence": [],
-      "notes": "Use current official docs for RHEL image mode, HCP Terraform workspaces, AAP workflows, and Quay/private registry behavior."
+      "evidence": [
+        "2026-06-06 docs/architecture/0001-ansible-first-bootc-flow.md accepted: names Ansible/AAP as orchestrator owner, images/ for build contract, registry/ for publication contract, terraform/ for HCP Terraform provisioning boundary, ansible/ for orchestration and validation; ./init.sh passed from /home/d3/Github/d3hl-rhel-bootc-orchestrator"
+      ],
+      "notes": "ADR 0001 locks Ansible-first sequencing and live-action gates. Linear dual-layer workflow documented in agent-contract-master/docs/linear-workflow.md."
     },
     {
       "id": "REGISTRY-001",
