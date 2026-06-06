@@ -1,6 +1,6 @@
 {
   "project": "d3hl-rhel-bootc-orchestrator",
-  "last_updated": "2026-06-06",
+  "last_updated": "2026-06-07",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -66,14 +66,17 @@
       "dependencies": [
         "ARCH-001"
       ],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "registry contract exists under registry/",
-        "credential references use op://d3HLPRV/... placeholders only",
+        "credential references remain op:// 1Password references only",
+        "sudo podman build/login/push boundary is documented",
         "./init.sh succeeds"
       ],
-      "evidence": [],
-      "notes": "No repository creation or image push in this feature."
+      "evidence": [
+        "2026-06-07 registry/README.md defines satellite.d3hl.site registry contract, sudo podman boundary, base image satellite.d3hl.site/ncdv/dev/rhel10-img/rhel_10_image_mode/d3-homelab:rhel10-bootc, aap username, 1Password password reference op://d3HL/Rhel Satelite/PAT for mcp, tag/promotion rules, validation commands, and rollback hints; ./init.sh passed from /home/d3/Github/d3hl-rhel-bootc-orchestrator"
+      ],
+      "notes": "No repository creation, registry login, image pull, image build, or image push in this feature. Provided password reference uses vault d3HL while the shared secrets baseline names d3HLPRV; confirm vault name before live registry actions."
     },
     {
       "id": "IMAGE-001",
