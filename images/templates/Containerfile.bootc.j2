@@ -1,6 +1,26 @@
-ARG BOOTC_BASE_IMAGE=registry.redhat.io/rhel9/rhel-bootc:latest
+ARG BOOTC_BASE_IMAGE={{ bootc_base_image | default('satellite.d3hl.site/ncdv/dev/rhel10-img/rhel_10_image_mode/d3-homelab:rhel10-bootc') }}
 FROM ${BOOTC_BASE_IMAGE}
 
-# Initial template placeholder only. Future features must pin base image strategy,
-# package inputs, validation, and registry promotion rules before building.
-RUN true
+ARG IMAGE_TAG={{ image_tag | default('rhel10-bootc-dev') }}
+LABEL org.d3hl.bootc.image-tag="${IMAGE_TAG}"
+
+# Base image already includes openssh-server, sudo, and cloud-utils-growpart.
+# Optional packages below require RH entitlement during build. Enable only on a
+# subscribed build host.
+# RUN dnf -y install qemu-guest-agent cloud-init && dnf clean all
+# RUN systemctl enable qemu-guest-agent.service cloud-init.service
+
+RUN systemctl enable sshd.service
+
+# Bake operator profile at image build time. cloud-init drop-in remains for
+# environments where cloud-init is installed and enabled later.
+RUN id {{ bootc_operator_username }} >/dev/null 2>&1 || useradd -m -G {{ bootc_operator_groups | join(',') }} -s /bin/bash -c "d3 operator" {{ bootc_operator_username }}
+COPY etc/sudoers.d/d3 /etc/sudoers.d/d3
+COPY etc/ssh/authorized_keys /home/{{ bootc_operator_username }}/.ssh/authorized_keys
+RUN chmod 440 /etc/sudoers.d/d3 \
+ && install -d -m 700 -o {{ bootc_operator_username }} -g {{ bootc_operator_username }} /home/{{ bootc_operator_username }}/.ssh \
+ && chmod 600 /home/{{ bootc_operator_username }}/.ssh/authorized_keys \
+ && chown {{ bootc_operator_username }}:{{ bootc_operator_username }} /home/{{ bootc_operator_username }}/.ssh/authorized_keys
+
+COPY etc/cloud/cloud.cfg.d/90-d3-user.cfg /etc/cloud/cloud.cfg.d/90-d3-user.cfg
+RUN chmod 0644 /etc/cloud/cloud.cfg.d/90-d3-user.cfg

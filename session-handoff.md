@@ -4,28 +4,41 @@ Last updated: 2026-06-07
 
 ## Current Task
 
-`REGISTRY-001` registry contract is complete. Next feature: `IMAGE-001`.
+`IMAGE-001` bootc image build inputs are complete. Next feature: `TF-001`.
 
 ## Files Touched
 
-- `registry/README.md`
+- `images/templates/Containerfile.bootc.j2`
+- `images/templates/cloud-init/90-d3-user.cfg.j2`
+- `images/templates/config.toml.j2`
+- `images/templates/etc/sudoers.d/d3.j2`
+- `images/templates/etc/ssh/authorized_keys.j2`
+- `images/build-vars.example.yml`
+- `images/op-run.build.example`
+- `images/README.md`
+- `images/validation-checklist.md`
+- `ansible.cfg`
+- `ansible/playbooks/render_bootc_image_context.yml`
+- `ansible/roles/bootc_image_render/`
+- `ansible/roles/README.md`
+- `docs/secrets-references.md`
+- `README.md`
 - `feature_list.json`
 - `claude-progress.md`
 - `session-handoff.md`
 
 ## Verification
 
-- Passed: `./init.sh` from `/home/d3/Github/d3hl-rhel-bootc-orchestrator` (2026-06-06)
-- Passed: ADR 0001 names owners for image build, registry, HCP Terraform, and Ansible/AAP
-- Passed: Linear bootc issues NCD-20–NCD-27 created; ARCH-001 synced as Done (NCD-21)
-- Passed: `registry/README.md` defines the `satellite.d3hl.site` registry contract, `sudo podman` boundary, base image, `aap` username, 1Password password reference, tag/promotion rules, validation commands, and rollback hints
 - Passed: `./init.sh` from `/home/d3/Github/d3hl-rhel-bootc-orchestrator` (2026-06-07)
+- Passed: `images/` templates and validation checklist for operator user `d3`
+- Passed: Ansible-first render path via `ansible/playbooks/render_bootc_image_context.yml`
+- No live Ansible render with `op run`, image build, push, or first-boot validation was run in harness verification
 
 ## Blockers / Risks
 
 - No live HCP Terraform, AAP, Quay/private registry, image push, Red Hat subscription, or Proxmox mutation is approved.
-- No live registry login, image pull, image build, or image push was run for `REGISTRY-001`.
-- The provided registry password reference uses vault `d3HL`, while the shared secrets baseline names `d3HLPRV`; confirm vault name before live registry actions.
+- SSH public key must resolve only during Ansible render via `op run` and `op://d3HLPRV/d3_ops/public key`.
+- Registry password reference still uses vault `d3HL` in `registry/README.md`; shared baseline names `d3HLPRV`.
 - Keep the existing `/home/d3/Github/d3hl-infra-bootc-pipeline` untouched.
 
 ## Next Session Command
@@ -46,6 +59,6 @@ Team **d3HL**. Project **bootc-orchestrator**: https://linear.app/ncdv/project/b
 | BOOTC-000 | NCD-20 (Done) |
 | ARCH-001 | NCD-21 (Done) |
 | REGISTRY-001 | NCD-22 (Backlog; repo state passing, Linear sync pending) |
-| IMAGE-001 | NCD-23 (Backlog) |
+| IMAGE-001 | NCD-23 (Backlog; repo state passing, Linear sync pending) |
 
 See `agent-contract-master/docs/linear-workflow.md` for full mapping.

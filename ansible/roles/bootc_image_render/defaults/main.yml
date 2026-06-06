@@ -1,0 +1,22 @@
+---
+bootc_repo_root: "{{ playbook_dir }}/../.."
+bootc_template_root: "{{ bootc_repo_root }}/images/templates"
+bootc_build_dir: "/tmp/bootc-build"
+bootc_vars_file: "{{ bootc_repo_root }}/images/build-vars.example.yml"
+
+bootc_render_map:
+  - src: Containerfile.bootc.j2
+    dest: Containerfile
+    mode: "0644"
+  - src: config.toml.j2
+    dest: config.toml
+    mode: "0644"
+  - src: cloud-init/90-d3-user.cfg.j2
+    dest: etc/cloud/cloud.cfg.d/90-d3-user.cfg
+    mode: "0644"
+  - src: etc/sudoers.d/d3.j2
+    dest: etc/sudoers.d/d3
+    mode: "0440"
+  - src: etc/ssh/authorized_keys.j2
+    dest: etc/ssh/authorized_keys
+    mode: "0600"

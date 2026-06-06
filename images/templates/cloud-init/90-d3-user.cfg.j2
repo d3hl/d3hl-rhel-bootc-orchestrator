@@ -1,0 +1,16 @@
+#cloud-config
+# Operator profile for {{ bootc_operator_username }}.
+# SSH public key reference: {{ bootc_operator_ssh_public_key_ref }}
+# Resolve the key only at template render time; never commit the key value.
+users:
+  - name: {{ bootc_operator_username }}
+    gecos: d3 operator
+    groups:
+{% for group in bootc_operator_groups %}
+      - {{ group }}
+{% endfor %}
+    sudo: "{{ bootc_operator_sudo }}"
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - {{ bootc_operator_ssh_public_key }}

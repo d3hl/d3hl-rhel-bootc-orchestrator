@@ -89,14 +89,16 @@
         "ARCH-001",
         "REGISTRY-001"
       ],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "Containerfile template exists under images/",
         "image validation checklist exists",
         "./init.sh succeeds"
       ],
-      "evidence": [],
-      "notes": "No bootc image build or push in this feature."
+      "evidence": [
+        "2026-06-07 images/templates/Containerfile.bootc.j2, cloud-init/sudoers/ssh templates, build-vars.example.yml, op-run.build.example, images/README.md, and images/validation-checklist.md define bootc build inputs for operator d3 with wheel group, NOPASSWD sudo, and SSH key reference op://d3HLPRV/d3_ops/public key; ansible/playbooks/render_bootc_image_context.yml and ansible/roles/bootc_image_render render templates Ansible-first; ansible-playbook --syntax-check ansible/playbooks/render_bootc_image_context.yml passed; op run render to /tmp/bootc-build-test passed; ./init.sh passed from /home/d3/Github/d3hl-rhel-bootc-orchestrator"
+      ],
+      "notes": "No bootc image build or push in this feature. SSH public key resolves only during Ansible render via op run."
     },
     {
       "id": "TF-001",

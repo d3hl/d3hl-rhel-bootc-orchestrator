@@ -1,0 +1,20 @@
+---
+- name: Render bootc image build context
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir }}/../../images/build-vars.example.yml"
+  vars:
+    bootc_operator_ssh_public_key: "{{ lookup('ansible.builtin.env', 'BOOTC_OPERATOR_SSH_PUBLIC_KEY') }}"
+  pre_tasks:
+    - name: Require operator SSH public key from op run environment
+      ansible.builtin.assert:
+        that:
+          - bootc_operator_ssh_public_key | length > 0
+          - bootc_operator_ssh_public_key is match('^(ssh-|ecdsa-|sk-ssh-)')
+        fail_msg: >-
+          BOOTC_OPERATOR_SSH_PUBLIC_KEY is missing or invalid. Resolve
+          {{ bootc_operator_ssh_public_key_ref }} with op run before rendering.
+        quiet: true
+  roles:
+    - bootc_image_render

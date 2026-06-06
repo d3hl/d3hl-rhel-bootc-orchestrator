@@ -1,0 +1,34 @@
+---
+- name: Ensure bootc build directory exists
+  ansible.builtin.file:
+    path: "{{ bootc_build_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Ensure template destination directories exist
+  ansible.builtin.file:
+    path: "{{ bootc_build_dir }}/{{ item.dest | dirname }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ bootc_render_map }}"
+  when: item.dest | dirname != '.'
+  loop_control:
+    label: "{{ item.dest | dirname }}"
+
+- name: Render bootc image build context templates
+  ansible.builtin.copy:
+    dest: "{{ bootc_build_dir }}/{{ item.dest }}"
+    content: "{{ lookup('ansible.builtin.template', bootc_template_root ~ '/' ~ item.src) }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ bootc_render_map }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  no_log: true
+
+- name: Show rendered build directory
+  ansible.builtin.debug:
+    msg:
+      - "Rendered bootc build context in {{ bootc_build_dir }}"
+      - "Image tag: {{ image_tag }}"
+      - "Base image: {{ bootc_base_image }}"
+  changed_when: false

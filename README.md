@@ -35,6 +35,7 @@ git log --oneline -5
 ./init.sh
 ```
 
-The first unfinished feature is `BOOTC-000`: establish the repo harness and
-static baseline. Do not implement live infrastructure while completing that
-feature.
+The next unfinished feature is `IMAGE-001`: define bootc image build inputs and
+validation. Completed harness features are `BOOTC-000`, `ARCH-001`, and
+`REGISTRY-001`. Do not run live image build, push, or Proxmox mutation unless a
+feature explicitly approves it and records pre-check evidence.

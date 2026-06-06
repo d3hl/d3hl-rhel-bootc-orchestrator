@@ -1,0 +1,12 @@
+---
+# Copy to a local, uncommitted vars file or pass with -e @path before render.
+# Do not commit resolved SSH key values.
+
+bootc_base_image: satellite.d3hl.site/ncdv/dev/rhel10-img/rhel_10_image_mode/d3-homelab:rhel10-bootc
+image_tag: rhel10-bootc-YYYYMMDD.N
+
+bootc_operator_username: d3
+bootc_operator_groups:
+  - wheel
+bootc_operator_sudo: "ALL=(ALL:ALL) NOPASSWD:ALL"
+bootc_operator_ssh_public_key_ref: "op://d3HLPRV/d3_ops/public key"

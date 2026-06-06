@@ -9,5 +9,6 @@ Placeholder references to define before live integration:
 - Quay/private registry robot credential: `op://d3HLPRV/<item>/<field>`
 - Red Hat registry/subscription credential: `op://d3HLPRV/<item>/<field>`
 - Proxmox API credential: `op://d3HLPRV/<item>/<field>`
+- bootc operator SSH public key: `op://d3HLPRV/d3_ops/public key`
 
 Do not replace placeholders with plaintext values.
