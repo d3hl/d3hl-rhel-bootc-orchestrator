@@ -37,7 +37,7 @@ cat feature_list.json
 
 ## Linear sync notes
 
-Team **d3 team** (rename to **d3HL** in Linear UI). Project **bootc-orchestrator**: https://linear.app/ncdv/project/bootc-orchestrator-39ad2dfde76c
+Team **d3HL**. Project **bootc-orchestrator**: https://linear.app/ncdv/project/bootc-orchestrator-39ad2dfde76c
 
 | Harness | Linear |
 |---------|--------|
