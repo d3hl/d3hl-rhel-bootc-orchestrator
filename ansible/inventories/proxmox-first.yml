@@ -5,3 +5,10 @@ all:
       hosts: {}
     bootc_targets:
       hosts: {}
+    proxmox_template_builders:
+      hosts:
+        nodeF:
+          ansible_host: 10.10.10.10
+          ansible_user: "{{ lookup('ansible.builtin.env', 'PROXMOX_SSH_USER') | default('d3', true) }}"
+          ansible_password: "{{ lookup('ansible.builtin.env', 'PROXMOX_SSH_PASSWORD') }}"
+          ansible_become_password: "{{ lookup('ansible.builtin.env', 'PROXMOX_SSH_PASSWORD') }}"

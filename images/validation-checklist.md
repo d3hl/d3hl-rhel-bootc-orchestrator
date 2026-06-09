@@ -58,6 +58,33 @@ sudo podman build \
   /tmp/bootc-build
 ```
 
+## qcow2 conversion (approved live build only)
+
+Requires Red Hat registry login for `registry.redhat.io/rhel9/bootc-image-builder`
+using `op://d3HLPRV/Redhat Registry/username` and `password`.
+
+```bash
+ansible-playbook ansible/playbooks/convert_bootc_to_qcow2.yml \
+  -e bootc_build_dir=/tmp/bootc-build \
+  -e bootc_qcow2_output_dir=/tmp/bootc-qcow2-out \
+  -e image_tag=rhel10-bootc-20260606.1
+```
+
+Or the equivalent `sudo podman run ... bootc-image-builder` documented in
+`ansible/playbooks/convert_bootc_to_qcow2.yml`.
+
+Expected artifact:
+
+```text
+/tmp/bootc-qcow2-out/qcow2/disk.qcow2
+```
+
+Stage for Proxmox import on the selected template node:
+
+```bash
+sudo install -m 0600 /tmp/bootc-qcow2-out/qcow2/disk.qcow2 /mnt/pve/cFS/import/rhel10-bootc-20260606.1.qcow2
+```
+
 ## First-boot validation (approved live boot only)
 
 After `bootc-image-builder` conversion and Proxmox provisioning:

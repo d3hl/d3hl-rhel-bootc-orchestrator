@@ -1,0 +1,21 @@
+---
+- name: Require explicit Proxmox template target
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Require pve_template_node for live template registration
+      ansible.builtin.assert:
+        that:
+          - pve_template_node is defined
+          - pve_template_node | length > 0
+        fail_msg: >-
+          Set pve_template_node to the Proxmox inventory host that owns template
+          builds. Example: -e pve_template_node=pve01
+        quiet: true
+
+- name: Register RHEL bootc qcow2 as a Proxmox VM template
+  hosts: "{{ pve_template_node | default('proxmox_template_builders') }}"
+  gather_facts: false
+  become: true
+  roles:
+    - bootc_proxmox_template

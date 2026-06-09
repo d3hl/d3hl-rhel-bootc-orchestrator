@@ -1,6 +1,6 @@
 {
   "project": "d3hl-rhel-bootc-orchestrator",
-  "last_updated": "2026-06-07",
+  "last_updated": "2026-06-09",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -74,9 +74,9 @@
         "./init.sh succeeds"
       ],
       "evidence": [
-        "2026-06-07 registry/README.md defines satellite.d3hl.site registry contract, sudo podman boundary, base image satellite.d3hl.site/ncdv/dev/rhel10-img/rhel_10_image_mode/d3-homelab:rhel10-bootc, aap username, 1Password password reference op://d3HL/Rhel Satelite/PAT for mcp, tag/promotion rules, validation commands, and rollback hints; ./init.sh passed from /home/d3/Github/d3hl-rhel-bootc-orchestrator"
+        "2026-06-07 registry/README.md defines satellite.d3hl.site registry contract, sudo podman boundary, base image satellite.d3hl.site/ncdv/dev/rhel10-img/rhel_10_image_mode/d3-homelab:rhel10-bootc, aap username, 1Password password reference op://d3HLPRV/Rhel Satelite/PAT for mcp, tag/promotion rules, validation commands, and rollback hints; ./init.sh passed from /home/d3/Github/d3hl-rhel-bootc-orchestrator"
       ],
-      "notes": "No repository creation, registry login, image pull, image build, or image push in this feature. Provided password reference uses vault d3HL while the shared secrets baseline names d3HLPRV; confirm vault name before live registry actions."
+      "notes": "No repository creation, registry login, image pull, image build, or image push in this feature. d3HLPRV is the only approved 1Password vault for documented secret references in this repo."
     },
     {
       "id": "IMAGE-001",
@@ -102,7 +102,7 @@
     },
     {
       "id": "TF-001",
-      "priority": 5,
+      "priority": 6,
       "area": "terraform",
       "title": "Scaffold HCP Terraform Proxmox-first provisioning contract",
       "description": "Terraform environment and module skeletons describe Proxmox-first bootc VM resources without live apply.",
@@ -120,8 +120,35 @@
       "notes": "No live HCP Terraform plan or apply in this feature."
     },
     {
+      "id": "PVE-TEMPLATE-001",
+      "priority": 5,
+      "area": "ansible",
+      "title": "Register converted bootc qcow2 as Proxmox VM template",
+      "description": "Ansible playbook and role register the staged RHEL 10 bootc qcow2 as a Ceph-backed Proxmox VM template with UEFI, q35, virtio-scsi, virtio NIC, and cloud-init drive.",
+      "user_visible_behavior": "Operators can create or rebuild one Proxmox template VMID from the blessed bootc qcow2 after recording the target node and live approval.",
+      "dependencies": [
+        "IMAGE-001"
+      ],
+      "status": "passing",
+      "verification": [
+        "ansible-playbook --syntax-check ansible/playbooks/register_bootc_proxmox_template.yml succeeds",
+        "ansible-playbook --syntax-check ansible/playbooks/preflight_proxmox_template.yml succeeds",
+        "./init.sh succeeds",
+        "playbook fails before Proxmox mutation when pve_template_node is omitted",
+        "live run records qm config <vmid> evidence after qm template has been applied"
+      ],
+      "evidence": [
+        "2026-06-07 ansible/playbooks/register_bootc_proxmox_template.yml, ansible/roles/bootc_proxmox_template/, and docs/runbooks/proxmox-bootc-template.md implemented static Proxmox template registration contract for qcow2 /var/tmp/rhel10-bootc-20260606.1.qcow2, VMID 9001, template rhel10-bootc-20260606-1-tmpl, storage ceph-vm, q35/OVMF/virtio-scsi/virtio NIC/cloud-init; ansible-playbook --syntax-check ansible/playbooks/register_bootc_proxmox_template.yml passed; ./init.sh passed from /home/d3/Github/d3hl-rhel-bootc-orchestrator; ansible-playbook ansible/playbooks/register_bootc_proxmox_template.yml failed safely at localhost assert because pve_template_node was omitted",
+        "2026-06-08 API-first read-only preflight with op://d3HLPRV/proxmox_env/PROXMOX_API_TOKEN succeeded for Proxmox API version 9.2.3, nodeF online, VMID 9001 absent cluster-wide, and no nodeF qemu config for VMID 9001. Storage ID ceph-vm does not exist; API-visible RBD storage is cephVM, active and enabled on nodeF with rootdir,images content. No live registration was run.",
+        "2026-06-09 PVE-TEMPLATE-001 was redirected to an Ansible-first live path: ansible/playbooks/preflight_proxmox_template.yml verifies nodeF, cephVM, VMID 9001, and nodeF:/mnt/pve/cFS/import/rhel10-bootc-20260606.1.qcow2 over SSH/become; ansible/inventories/proxmox-first.yml gets runtime PROXMOX_SSH_USER/PROXMOX_SSH_PASSWORD values from op run using ansible/op-run.proxmox.example with d3HLPRV references only. Proxmox API mutation is out of scope.",
+        "2026-06-09 op run --env-file ansible/op-run.proxmox.example -- ansible-playbook -i ansible/inventories/proxmox-first.yml ansible/playbooks/preflight_proxmox_template.yml -e pve_template_node=nodeF passed with changed=0: cephVM active, qcow2 checksum 5efb97c95c9ce3045994551da3b9e5bda94a4100aefdb337922de6066d8d1b7c matched, and VMID 9001 config rc was 2. 2026-06-09 ./init.sh passed after the Ansible-first updates.",
+        "2026-06-09 first live registration attempt failed safely before Proxmox mutation because pve_existing_vm_name was undefined when VMID 9001 was absent; ansible/roles/bootc_proxmox_template/tasks/main.yml now defaults that fact for absent VMIDs. Retry passed: op run --env-file ansible/op-run.proxmox.example -- ansible-playbook -i ansible/inventories/proxmox-first.yml ansible/playbooks/register_bootc_proxmox_template.yml -e pve_template_node=nodeF created VMID 9001 on nodeF, imported the qcow2 into cephVM, attached scsi0 and cloud-init, set boot order, and converted the VM to a template. Post-check qm config 9001 confirmed template: 1, bios ovmf, machine q35, scsihw virtio-scsi-single, scsi0 cephVM:base-9001-disk-1, ide2 cephVM:vm-9001-cloudinit, and boot order scsi0."
+      ],
+      "notes": "PVE-TEMPLATE-001 live registration is complete for nodeF VMID 9001. Future rebuilds must stay explicitly approved and must not set pve_template_allow_replace_any=true unless replacing a non-matching VMID is intentionally approved."
+    },
+    {
       "id": "ANSIBLE-001",
-      "priority": 6,
+      "priority": 7,
       "area": "ansible",
       "title": "Scaffold Ansible and AAP orchestration shape",
       "description": "Inventory, playbook, role, and AAP workflow export skeletons cover build, publish, provision, and validation stages.",
@@ -142,7 +169,7 @@
     },
     {
       "id": "CI-001",
-      "priority": 7,
+      "priority": 8,
       "area": "ci",
       "title": "Add GitHub Actions static checks",
       "description": "CI runs static shell, JSON, Terraform, and Ansible checks without live deploy credentials.",
@@ -163,7 +190,7 @@
     },
     {
       "id": "E2E-001",
-      "priority": 8,
+      "priority": 9,
       "area": "validation",
       "title": "Define non-mutating Proxmox-first end-to-end validation plan",
       "description": "End-to-end validation runbook documents read-only checks for image, registry, HCP Terraform handoff, Ansible/AAP workflow state, and Proxmox target readiness.",

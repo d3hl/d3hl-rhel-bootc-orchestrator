@@ -1,0 +1,218 @@
+---
+- name: Validate Proxmox template registration inputs
+  ansible.builtin.assert:
+    that:
+      - pve_qcow2_path | length > 0
+      - pve_qcow2_sha256 | length == 64
+      - pve_template_vmid | int > 0
+      - pve_template_name | length > 0
+      - pve_ceph_storage | length > 0
+      - pve_template_bridge | length > 0
+    quiet: true
+
+- name: Verify Ceph storage is active on target node
+  ansible.builtin.command:
+    argv:
+      - pvesm
+      - status
+      - --storage
+      - "{{ pve_ceph_storage }}"
+  register: pve_ceph_status
+  changed_when: false
+  failed_when: pve_ceph_status.rc != 0 or 'active' not in pve_ceph_status.stdout
+
+- name: Verify staged qcow2 artifact checksum
+  ansible.builtin.stat:
+    path: "{{ pve_qcow2_path }}"
+    checksum_algorithm: sha256
+    get_checksum: true
+  register: pve_qcow2_stat
+  failed_when: >-
+    not pve_qcow2_stat.stat.exists
+    or pve_qcow2_stat.stat.checksum != pve_qcow2_sha256
+
+- name: Read existing VMID config if present
+  ansible.builtin.command:
+    argv:
+      - qm
+      - config
+      - "{{ pve_template_vmid }}"
+  register: pve_existing_config
+  changed_when: false
+  failed_when: false
+
+- name: Extract existing VM name
+  ansible.builtin.set_fact:
+    pve_existing_vm_name: >-
+      {{
+        (
+          pve_existing_config.stdout
+          | regex_search('(?m)^name:\s*([^\n]+)')
+          | default('', true)
+        )
+        | regex_replace('^name:\s*', '')
+      }}
+  when: pve_existing_config.rc == 0
+
+- name: Default existing VM name when VMID is absent
+  ansible.builtin.set_fact:
+    pve_existing_vm_name: ""
+  when: pve_existing_config.rc != 0
+
+- name: Refuse to replace an unrelated VMID
+  ansible.builtin.assert:
+    that:
+      - pve_existing_config.rc != 0
+        or pve_existing_vm_name == pve_template_name
+        or pve_template_allow_replace_any | bool
+    fail_msg: >-
+      VMID {{ pve_template_vmid }} already exists as '{{ pve_existing_vm_name }}',
+      not '{{ pve_template_name }}'. Choose a different pve_template_vmid or set
+      pve_template_allow_replace_any=true only after recording approval.
+    quiet: true
+
+- name: Destroy existing matching template VMID for idempotent rebuild
+  ansible.builtin.command:
+    argv:
+      - qm
+      - destroy
+      - "{{ pve_template_vmid }}"
+      - --purge
+      - --skiplock
+  when:
+    - pve_template_destroy_existing | bool
+    - pve_existing_config.rc == 0
+  changed_when: true
+
+- name: Create q35 OVMF VM shell with Ceph-backed EFI disk
+  ansible.builtin.command:
+    argv:
+      - qm
+      - create
+      - "{{ pve_template_vmid }}"
+      - --name
+      - "{{ pve_template_name }}"
+      - --memory
+      - "{{ pve_template_memory_mb }}"
+      - --cores
+      - "{{ pve_template_cores }}"
+      - --cpu
+      - "{{ pve_template_cpu }}"
+      - --machine
+      - "{{ pve_template_machine }}"
+      - --bios
+      - "{{ pve_template_bios }}"
+      - --efidisk0
+      - "{{ pve_ceph_storage }}:0,efitype={{ pve_template_efi_type }},pre-enrolled-keys={{ pve_template_pre_enrolled_keys }},format=raw"
+      - --scsihw
+      - "{{ pve_template_scsihw }}"
+      - --net0
+      - "virtio,bridge={{ pve_template_bridge }}"
+      - --agent
+      - enabled=1,fstrim_cloned_disks=1
+      - --ostype
+      - "{{ pve_template_ostype }}"
+      - --serial0
+      - socket
+      - --vga
+      - serial0
+  changed_when: true
+
+- name: Import staged qcow2 into Ceph storage as raw
+  ansible.builtin.command:
+    argv:
+      - qm
+      - disk
+      - import
+      - "{{ pve_template_vmid }}"
+      - "{{ pve_qcow2_path }}"
+      - "{{ pve_ceph_storage }}"
+      - --format
+      - raw
+  changed_when: true
+
+- name: Read VM config after disk import
+  ansible.builtin.command:
+    argv:
+      - qm
+      - config
+      - "{{ pve_template_vmid }}"
+  register: pve_imported_config
+  changed_when: false
+
+- name: Extract imported disk volume ID
+  ansible.builtin.set_fact:
+    pve_imported_disk_volid: >-
+      {{
+        (
+          pve_imported_config.stdout
+          | regex_search('(?m)^unused0:\s*([^\n]+)')
+          | default('', true)
+        )
+        | regex_replace('^unused0:\s*', '')
+      }}
+
+- name: Require imported disk volume ID
+  ansible.builtin.assert:
+    that:
+      - pve_imported_disk_volid | length > 0
+    fail_msg: "qm disk import did not leave an unused0 disk for VMID {{ pve_template_vmid }}."
+    quiet: true
+
+- name: Attach imported disk as virtio-scsi boot disk
+  ansible.builtin.command:
+    argv:
+      - qm
+      - set
+      - "{{ pve_template_vmid }}"
+      - --scsi0
+      - "{{ pve_imported_disk_volid }},discard=on,ssd=1,iothread=1"
+  changed_when: true
+
+- name: Attach cloud-init drive
+  ansible.builtin.command:
+    argv:
+      - qm
+      - set
+      - "{{ pve_template_vmid }}"
+      - --ide2
+      - "{{ pve_ceph_storage }}:cloudinit"
+  changed_when: true
+
+- name: Set template boot order
+  ansible.builtin.command:
+    argv:
+      - qm
+      - set
+      - "{{ pve_template_vmid }}"
+      - --boot
+      - order=scsi0
+  changed_when: true
+
+- name: Convert VM to template
+  ansible.builtin.command:
+    argv:
+      - qm
+      - template
+      - "{{ pve_template_vmid }}"
+  changed_when: true
+
+- name: Read final template config
+  ansible.builtin.command:
+    argv:
+      - qm
+      - config
+      - "{{ pve_template_vmid }}"
+  register: pve_template_config
+  changed_when: false
+
+- name: Show final template config
+  ansible.builtin.debug:
+    var: pve_template_config.stdout_lines
+  changed_when: false
+
+- name: Remove staged qcow2 after successful import
+  ansible.builtin.file:
+    path: "{{ pve_qcow2_path }}"
+    state: absent
+  when: pve_template_remove_qcow2_after_import | bool

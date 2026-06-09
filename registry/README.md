@@ -13,14 +13,13 @@ repositories, log in to the registry, build images, or push images.
 | Registry | `satellite.d3hl.site` |
 | Base image | `satellite.d3hl.site/ncdv/dev/rhel10-img/rhel_10_image_mode/d3-homelab:rhel10-bootc` |
 | Registry username | `aap` |
-| Registry password reference | `op://d3HL/Rhel Satelite/PAT for mcp` |
+| Registry password reference | `op://d3HLPRV/Rhel Satelite/PAT for mcp` |
 
 The password reference is a 1Password secret reference only. Do not replace it
 with the secret value in git, Linear, logs, or prompts.
 
-The shared workspace secrets baseline names vault `d3HLPRV`. The provided
-runtime reference uses vault `d3HL`; confirm the intended vault name before any
-live `op run`, login, build, pull, or push action.
+The shared workspace secrets baseline names vault `d3HLPRV`; it is the only
+approved 1Password vault for this repo's documented secret references.
 
 ## Repository naming
 
@@ -59,7 +58,7 @@ Use an uncommitted environment file or execution environment that maps the
 password reference to an environment variable at runtime:
 
 ```text
-REGISTRY_PASSWORD=op://d3HL/Rhel Satelite/PAT for mcp
+REGISTRY_PASSWORD=op://d3HLPRV/Rhel Satelite/PAT for mcp
 ```
 
 Candidate login command for a separately approved live step:

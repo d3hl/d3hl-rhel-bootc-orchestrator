@@ -2,9 +2,5 @@
 mountpoint = "/"
 minsize = "10 GiB"
 
-[[customizations.filesystem]]
-mountpoint = "/var"
-minsize = "20 GiB"
-
-[[customizations.kernel]]
+[customizations.kernel]
 append = "console=ttyS0,115200 console=tty0"
