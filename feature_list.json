@@ -110,14 +110,19 @@
       "dependencies": [
         "ARCH-001"
       ],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "terraform fmt -check -recursive succeeds",
         "terraform validate succeeds with backend disabled where environments exist",
         "./init.sh succeeds"
       ],
-      "evidence": [],
-      "notes": "No live HCP Terraform plan or apply in this feature."
+      "evidence": [
+        "2026-06-12: terraform fmt -check -recursive terraform -> rc 0",
+        "2026-06-12: terraform -chdir=terraform/environments/dev init -backend=false + validate -> Success! The configuration is valid.",
+        "2026-06-12: terraform -chdir=terraform/modules/proxmox-bootc-vm init -backend=false + validate -> Success! The configuration is valid.",
+        "2026-06-12: ./init.sh -> rc 0 (terraform section validates both dirs; provider bpg/proxmox 0.109.0 resolved)"
+      ],
+      "notes": "No live HCP Terraform plan or apply in this feature. Uses preferred bpg/proxmox provider, pinned ~> 0.109; no provider credentials in repo .tf."
     },
     {
       "id": "PVE-TEMPLATE-001",

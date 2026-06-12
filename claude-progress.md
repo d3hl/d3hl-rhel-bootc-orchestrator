@@ -1,6 +1,6 @@
 # d3hl-rhel-bootc-orchestrator progress
 
-Last updated: 2026-06-09
+Last updated: 2026-06-12
 
 ## Current Verified State
 
@@ -14,10 +14,11 @@ Last updated: 2026-06-09
 - `PVE-TEMPLATE-001` Proxmox template registration accepted on 2026-06-09 (`ansible/playbooks/register_bootc_proxmox_template.yml`, `ansible/playbooks/preflight_proxmox_template.yml`, `ansible/roles/bootc_proxmox_template/`, `docs/runbooks/proxmox-bootc-template.md`).
 - Linear dual-layer workflow documented in `agent-contract-master/docs/linear-workflow.md`.
 - Bootc Linear issues backfilled (NCD-20 through NCD-27); ARCH-001 synced as Done (NCD-21).
+- `TF-001` HCP Terraform Proxmox-first provisioning contract scaffolded and passing on 2026-06-12 (`terraform/environments/dev/`, `terraform/modules/proxmox-bootc-vm/`) using the preferred `bpg/proxmox` provider pinned `~> 0.109`; no live apply and no provider credentials in repo `.tf`.
 
 ## Current Objective
 
-Start `TF-001`: scaffold the HCP Terraform Proxmox-first provisioning contract.
+`TF-001` complete. Next: pick the highest-priority unfinished feature in `feature_list.json` and keep live HCP Terraform plan/apply out of scope until explicitly approved.
 
 ## Verification Evidence
 
@@ -40,6 +41,7 @@ Start `TF-001`: scaffold the HCP Terraform Proxmox-first provisioning contract.
 - Terraform dev environment validated successfully.
 - Ansible checks skipped because `ansible-playbook` and `ansible-lint` are not installed locally.
 - Git whitespace check completed.
+- 2026-06-12 `TF-001`: `terraform fmt -check -recursive terraform` rc 0; `terraform init -backend=false` + `validate` succeeded for `terraform/environments/dev` and `terraform/modules/proxmox-bootc-vm` (provider `bpg/proxmox` 0.109.0 resolved from registry); `./init.sh` passed rc 0.
 
 ## Blockers / Risks
 

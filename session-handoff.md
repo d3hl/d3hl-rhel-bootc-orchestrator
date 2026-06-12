@@ -1,12 +1,15 @@
 # Session handoff
 
-Last updated: 2026-06-09
+Last updated: 2026-06-12
 
 ## Current Task
 
-bootc OCI image converted to qcow2. Proxmox VM template registration automation
-is implemented and live-verified as VMID `9001` on `nodeF`. Next feature:
-`TF-001`.
+`TF-001` complete: HCP Terraform Proxmox-first provisioning contract scaffolded
+with the preferred `bpg/proxmox` provider (pinned `~> 0.109`, resolved 0.109.0),
+`terraform validate` and `./init.sh` passing, no live apply and no provider
+credentials in repo `.tf`. Files: `terraform/environments/dev/{versions,variables,main,outputs}.tf`,
+`terraform/modules/proxmox-bootc-vm/{versions,variables,main,outputs}.tf` and its README.
+Next feature: highest-priority unfinished item in `feature_list.json`.
 
 ## Artifact summary
 
