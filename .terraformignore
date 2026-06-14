@@ -1,0 +1,18 @@
+# Ignore local state and crash logs (Terraform Cloud/remote manages state)
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+*.log
+
+# Sensitive config files or local secrets
+*.secrets
+*.env
+
+# Local caches/output/artifacts
+output/
+scratch/
+.scratch/
+tmp/
+*.bak
+*.swp

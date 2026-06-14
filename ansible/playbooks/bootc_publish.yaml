@@ -1,0 +1,13 @@
+---
+# Playbook: Publish the bootc image to registry/storage
+# Workflow Stage: Image Publish
+# This stub references the bootc_publish role.
+
+- name: Publish bootc image
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: bootc_publish
+      # Registry/credentials not referenced in this scaffold
+  vars:
+    # Registry, image tag, etc. go here in future features

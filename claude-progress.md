@@ -1,6 +1,6 @@
 # d3hl-rhel-bootc-orchestrator progress
 
-Last updated: 2026-06-12
+Last updated: 2026-06-14
 
 ## Current Verified State
 
@@ -15,10 +15,11 @@ Last updated: 2026-06-12
 - Linear dual-layer workflow documented in `agent-contract-master/docs/linear-workflow.md`.
 - Bootc Linear issues backfilled (NCD-20 through NCD-27); ARCH-001 synced as Done (NCD-21).
 - `TF-001` HCP Terraform Proxmox-first provisioning contract scaffolded and passing on 2026-06-12 (`terraform/environments/dev/`, `terraform/modules/proxmox-bootc-vm/`) using the preferred `bpg/proxmox` provider pinned `~> 0.109`; no live apply and no provider credentials in repo `.tf`.
+- `TF-002` dev environment made apply-ready and passing on 2026-06-14: corrected `bpg/proxmox` schema defects introduced by a crew write (duplicate `required_providers`, `proxmox_virtual_environment_file` `node`→`node_name` + missing `datastore_id`, VM `disk` `storage`→`datastore_id`/missing `interface`/string size), restored the missing `cloudinit-user-data.yaml.tftpl`, fixed the dangling `module.bootc_vm` outputs, and baked in real values (nodes nodeA/nodeB/nodeD for rhvm-01/02/03, disk `cephVM`, snippets `cFS`, bridge `vsvc`, SSH key `op://d3HLPRV/d3_ops/public key`, HCP org `ncdv`/project `bootc`/workspace `Komodo`). Added `docs/runbooks/proxmox-bootc-apply.md`. `terraform validate` + `./init.sh` pass; no live apply was run.
 
 ## Current Objective
 
-`TF-001` complete. Next: pick the highest-priority unfinished feature in `feature_list.json` and keep live HCP Terraform plan/apply out of scope until explicitly approved.
+`TF-002` complete (dev env validates and is apply-ready as code; apply runbook written). Live HCP Terraform plan/apply remains **gated** and out of scope until explicitly approved with recorded pre-check evidence: before any apply the operator must set the HCP workspace variable sets (`proxmox_api_token`, `ci_ssh_public_key`, `proxmox_api_url`), enable `snippets` content on `cFS` for nodeA/nodeB/nodeD, and resolve the provider `insecure`/TLS decision (see the runbook). Next harness feature: highest-priority unfinished item in `feature_list.json` (e.g. `ANSIBLE-001`).
 
 ## Verification Evidence
 

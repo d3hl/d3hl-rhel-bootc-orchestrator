@@ -1,0 +1,13 @@
+# AAP Workflow Export — Skeleton
+# Placeholder for Ansible Automation Platform workflow template export.
+# TODO: Overwrite with real AAP job/workflow export after integration.
+
+version: 1
+workflow_job_template:
+  name: "bootc Orchestration Workflow"
+  description: |
+    AAP workflow for bootc build, publish, provision, validate.
+    This stub is non-executable and must be replaced in real AAP integration.
+  workflow_nodes: []
+  survey: []
+  # Populate per AAP export format in future features.

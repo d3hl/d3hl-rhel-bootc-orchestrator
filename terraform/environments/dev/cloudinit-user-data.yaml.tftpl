@@ -1,0 +1,11 @@
+#cloud-config
+# Rendered by Terraform templatefile(); uploaded as a Proxmox snippet and attached
+# as the VM's cloud-init user-data. Values are injected, never hardcoded here.
+users:
+  - name: ${username}
+    groups: [wheel]
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+disable_root: true

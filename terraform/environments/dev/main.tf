@@ -1,19 +1,17 @@
-locals {
-  environment = "dev"
-  target      = "proxmox"
+terraform {
+  cloud {
+    organization = "ncdv"
+    workspaces {
+      project = "bootc"
+      name    = "Komodo"
+    }
+  }
 }
 
-# Provider configuration (endpoint, credentials) is supplied via HCP Terraform
-# workspace variables / variable sets at apply time, not declared in this repo.
+# required_providers (bpg/proxmox, pinned ~> 0.109) lives in versions.tf.
 
-module "bootc_vm" {
-  source = "../../modules/proxmox-bootc-vm"
-
-  proxmox_node_name = var.proxmox_node_name
-  vm_name           = "bootc-${local.environment}"
-  vm_id             = var.vm_id
-  cpu_cores         = var.cpu_cores
-  memory_mb         = var.memory_mb
-  datastore_id      = var.datastore_id
-  disk_size_gb      = var.disk_size_gb
+provider "proxmox" {
+  endpoint  = var.proxmox_api_url
+  api_token = var.proxmox_api_token
+  insecure  = false
 }

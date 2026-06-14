@@ -1,0 +1,13 @@
+---
+# Playbook: Provision VM(s) using bootc image
+# Workflow Stage: Provisioning
+# This stub references the bootc_provision role.
+
+- name: Provision bootc VM(s)
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: bootc_provision
+      # VM/API/inventory params to be injected in future features
+  vars:
+    # Proxmox, image ref, etc. go here

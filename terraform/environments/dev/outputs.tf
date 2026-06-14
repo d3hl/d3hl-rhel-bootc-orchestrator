@@ -1,9 +1,15 @@
-output "bootc_vm_id" {
-  description = "Resolved Proxmox VM id for the dev bootc VM."
-  value       = module.bootc_vm.vm_id
+output "rhvm_vms" {
+  description = "Provisioned bootc VMs: name => { node, id }."
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.rhvm :
+    name => {
+      node = vm.node_name
+      id   = vm.vm_id
+    }
+  }
 }
 
-output "bootc_vm_name" {
-  description = "Dev bootc VM name."
-  value       = module.bootc_vm.vm_name
+output "rhvm_names" {
+  description = "Names of the provisioned bootc VMs."
+  value       = keys(proxmox_virtual_environment_vm.rhvm)
 }

@@ -1,0 +1,13 @@
+---
+# Playbook: Validate provisioned bootc VM(s)
+# Workflow Stage: Post-Provision Validation
+# This stub references the bootc_validate role.
+
+- name: Validate bootc VM(s)
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: bootc_validate
+      # Checks/assertions to be filled in
+  vars:
+    # Validation parameters to follow

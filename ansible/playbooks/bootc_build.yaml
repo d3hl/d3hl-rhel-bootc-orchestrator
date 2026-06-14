@@ -1,0 +1,13 @@
+---
+# Playbook: Build the bootc image (not publish or provision)
+# Workflow Stage: Image Build
+# This stub references the bootc_build role and is intended for local/AAP use.
+
+- name: Build bootc image
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: bootc_build
+      # Add build parameters as needed
+  vars:
+    # No variables yet; populate in future features

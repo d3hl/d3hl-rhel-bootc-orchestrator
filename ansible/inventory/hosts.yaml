@@ -1,0 +1,7 @@
+# Stub static inventory for d3hl-rhel-bootc-orchestrator
+# No real hosts defined; all host resolution for future provisioning will be linked through HCP Terraform outputs and/or operator-injected inventory files.
+
+all:
+  hosts: {}
+  children: {}
+# To be replaced/extended by dynamic inventory after VM provisioning is integrated.

@@ -1,6 +1,6 @@
 {
   "project": "d3hl-rhel-bootc-orchestrator",
-  "last_updated": "2026-06-09",
+  "last_updated": "2026-06-14",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -123,6 +123,33 @@
         "2026-06-12: ./init.sh -> rc 0 (terraform section validates both dirs; provider bpg/proxmox 0.109.0 resolved)"
       ],
       "notes": "No live HCP Terraform plan or apply in this feature. Uses preferred bpg/proxmox provider, pinned ~> 0.109; no provider credentials in repo .tf."
+    },
+    {
+      "id": "TF-002",
+      "priority": 6,
+      "area": "terraform",
+      "title": "Make dev Terraform apply-ready and add HCP apply runbook",
+      "description": "Fix the dev environment so it validates and can be applied: correct bpg/proxmox schema, restore the cloud-init template, real node/storage/bridge/secret values, and document the gated operator apply procedure.",
+      "user_visible_behavior": "An operator can run the documented HCP Terraform plan/apply for the three dev bootc VMs; live apply stays gated behind explicit approval and recorded pre-check evidence.",
+      "dependencies": [
+        "TF-001",
+        "PVE-TEMPLATE-001"
+      ],
+      "status": "passing",
+      "verification": [
+        "terraform fmt -check -recursive succeeds",
+        "terraform validate succeeds for terraform/environments/dev and the module",
+        "./init.sh succeeds",
+        "docs/runbooks/proxmox-bootc-apply.md documents the gated apply with read-only pre-checks separated from live apply"
+      ],
+      "evidence": [
+        "2026-06-14: corrected dev defects from the crew write: removed duplicate required_providers (main.tf vs versions.tf); proxmox_virtual_environment_file uses node_name + datastore_id (var.rhvm_snippet_datastore=cFS); proxmox_virtual_environment_vm disk uses datastore_id=var.rhvm_storage (cephVM), interface=scsi0, numeric size; created terraform/environments/dev/cloudinit-user-data.yaml.tftpl; rewrote outputs.tf to use proxmox_virtual_environment_vm.rhvm (dropped dangling module.bootc_vm); rhvm_list/rhvm_hosts set to rhvm-01=nodeA, rhvm-02=nodeB, rhvm-03=nodeD; bridge=vsvc; ci_ssh_public_key=op://d3HLPRV/d3_ops/public key; cloud project=bootc, org=ncdv, workspace=Komodo.",
+        "2026-06-14: terraform fmt -check -recursive terraform -> rc 0",
+        "2026-06-14: terraform -chdir=terraform/environments/dev init -backend=false + validate -> Success! The configuration is valid.",
+        "2026-06-14: ./init.sh -> exit 0 (terraform validate passed for terraform/environments/dev and terraform/modules/proxmox-bootc-vm)",
+        "2026-06-14: docs/runbooks/proxmox-bootc-apply.md added (HCP org ncdv / project bootc / workspace Komodo, op:// variable-set references, read-only pre-checks, gated apply, rollback)."
+      ],
+      "notes": "No live HCP plan/apply was run in this feature. Live apply remains gated: operator must set HCP workspace variable sets (proxmox_api_token, ci_ssh_public_key, proxmox_api_url), enable 'snippets' content on cFS for nodeA/nodeB/nodeD, and resolve provider insecure/TLS before apply. The terraform/modules/proxmox-bootc-vm skeleton is no longer used by dev."
     },
     {
       "id": "PVE-TEMPLATE-001",
