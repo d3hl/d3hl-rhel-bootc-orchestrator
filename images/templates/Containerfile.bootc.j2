@@ -7,17 +7,21 @@ LABEL org.d3hl.bootc.image-tag="${IMAGE_TAG}"
 # Base image already includes openssh-server, sudo, and cloud-utils-growpart.
 {% if bootc_entitled_install | default(true) %}
 # Install entitled packages by registering with subscription-manager inside the
-# build. Credentials arrive as podman build secrets (rhsm_user/rhsm_pass), and
-# the same RUN unregisters + cleans so neither the credentials nor entitlement
-# certs persist in any image layer.
+# build. Credentials arrive as podman build secrets (rhsm_user/rhsm_pass). The
+# RUN ALWAYS unregisters + cleans -- even if repo-enable or dnf install fails --
+# so a failed build never leaves an orphaned registration server-side, and
+# neither the credentials nor entitlement certs persist in any image layer.
+# bootc_entitled_repos enables otherwise-disabled entitlement repos (e.g. the
+# version-matched Ceph tools repo) before the install.
 RUN --mount=type=secret,id=rhsm_user --mount=type=secret,id=rhsm_pass \
     subscription-manager register \
       --username "$(cat /run/secrets/rhsm_user)" \
       --password "$(cat /run/secrets/rhsm_pass)" \
- && dnf -y install {{ bootc_entitled_packages | default(['qemu-guest-agent', 'cloud-init']) | join(' ') }} \
- && dnf clean all \
- && subscription-manager unregister \
- && subscription-manager clean
+ && { {% if bootc_entitled_repos | default([]) %}subscription-manager repos{% for r in bootc_entitled_repos %} --enable={{ r }}{% endfor %} && {% endif %}dnf -y install {{ bootc_entitled_packages | default(['qemu-guest-agent', 'cloud-init']) | join(' ') }} && dnf clean all ; } ; \
+    rc=$? ; \
+    subscription-manager unregister || true ; \
+    subscription-manager clean || true ; \
+    exit $rc
 RUN systemctl enable {{ (bootc_entitled_services | default(['qemu-guest-agent.service', 'cloud-init.service'])) | join(' ') }}
 {% endif %}
 

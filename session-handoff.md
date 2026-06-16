@@ -17,6 +17,8 @@ image. The 9002 template (agent baked in) is the HANDOFF-001 unblock path.
 
 | Field | Value |
 |-------|-------|
+| Quay image (zsh/git/ceph-common) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.4` |
+| `.4` pushed digest | `sha256:587737ee35f60fe147db78fadf2cfc3e9152f5a74ee6afc1df50f25ac213d0e4` |
 | Quay image (via bootc_build role) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3` |
 | `.3` pushed digest | `sha256:5ed9875c30388e30d4d88c38e6c488e022c7b8d02c8515b9599f6ce8715071b9` |
 | Quay image (with agent) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.2` |
@@ -41,6 +43,8 @@ image. The 9002 template (agent baked in) is the HANDOFF-001 unblock path.
 - `ansible/playbooks/bootc_build.yaml` (BUILD-ROLE-001 — wired, loads build-vars)
 - `images/op-run.build.example` (BUILD-ROLE-001 — added RHSM build-secret refs)
 - `ansible/playbooks/convert_bootc_to_qcow2.yml` (PVE-TEMPLATE-001 — fixed self-referencing-var recursion)
+- `images/templates/Containerfile.bootc.j2` (PUBLISH-001 — bootc_entitled_repos support + always-unregister on failure)
+- `images/build-vars.example.yml` (PUBLISH-001 — default packages now include zsh/git/ceph-common; added bootc_entitled_repos=[rhceph-9-tools-for-rhel-10-x86_64-rpms])
 - `feature_list.json`, `claude-progress.md`, `session-handoff.md`
 - Gitignored local artifacts: `terraform/environments/dev/{main,variables,outputs,proxmox-rhvm}.tf`, `ansible.cfg`, `ansible/inventories/group_vars/bootc_targets.yml`
 
@@ -54,6 +58,7 @@ image. The 9002 template (agent baked in) is the HANDOFF-001 unblock path.
 - Passed: `./init.sh` → static baseline complete (after `BUILD-ROLE-001` role/playbook)
 - Passed: `BUILD-ROLE-001` live end-to-end — render → `bootc_build` built `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3`, in-image agent/cloud-init/sshd enabled + no creds/entitlement leak, `bootc_publish` pushed `sha256:5ed9875c…`
 - Passed: `PVE-TEMPLATE-001` second template — converted `.3` to qcow2 (sha256 `e62b7e93…`), staged to nodeF, registered VMID `9002` (`rhel10-bootc-20260617-3-tmpl`); `qm config 9002` shows `template: 1` with agent/q35/ovmf/virtio-scsi/cephVM/cloud-init
+- Passed: `PUBLISH-001` `.4` build+push — `zsh`/`git`/`ceph-common` baked in (ceph via `rhceph-9-tools-for-rhel-10`); `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.4` digest `sha256:587737ee…`; in-image `ceph-common-20.1.0` (tentacle, matches cluster 20.2.1), no creds/entitlement/repo leak
 - Blocked: `terraform output ansible_inventory` → `ansible_host=null` (no agent IP); `gen_terraform_inventory.py` refuses to write
 
 ## Blockers / Risks
@@ -71,6 +76,10 @@ image. The 9002 template (agent baked in) is the HANDOFF-001 unblock path.
   `/tmp/build_and_push_rhel10.sh` is retired.
 - Quay robot creds `op://d3HLPRV/Quay/{robot,robot_password}`; RHSM via
   `op://d3HL/<Red Hat Console: ndcv-org>` (reference by UUID — title has a `:`).
+- CLEANUP: orphaned RHSM consumer `7958bb40-8d59-4770-96ec-57fc734ea9db` from
+  the first `.4` attempt (failed at `dnf` before unregister). Remove it in the
+  Red Hat Console. The template now always unregisters even on failure, so it
+  should not recur.
 
 ## Next Session Command
 
