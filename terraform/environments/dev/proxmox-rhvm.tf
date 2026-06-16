@@ -44,6 +44,8 @@ resource "proxmox_virtual_environment_vm" "rhvm" {
 
   cpu {
     cores = var.rhvm_vcpu
+    architecture = "x86_64"
+    type = host
   }
 
   memory {

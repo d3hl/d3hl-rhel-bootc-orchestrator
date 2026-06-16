@@ -68,7 +68,7 @@ variable "rhvm_disk_gb" {
 variable "rhvm_template_vmid" {
   description = "Proxmox template VMID"
   type        = number
-  default     = 9001
+  default     = 9002
 }
 
 variable "rhvm_template_node" {
