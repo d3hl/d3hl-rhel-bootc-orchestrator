@@ -61,12 +61,11 @@ resource "proxmox_virtual_environment_vm" "rhvm" {
     model  = "virtio"
   }
 
-  # Agent disabled so VM creation does not block on the guest agent publishing
-  # network interfaces. The VMs were never getting an IP (no DHCP/network config
-  # on the bridge), so the agent had nothing to report and the create hung the
-  # full timeout. Re-enable once VM networking is sorted out.
+  # Agent enabled now that VM networking is sorted — the guest agent publishes
+  # the VM's IP, which the Ansible handoff consumes via the rhvm_vms output.
   agent {
-    enabled = false
+    enabled = true
+    timeout = "10m"
   }
 
   # Attach cloud-init user-data
