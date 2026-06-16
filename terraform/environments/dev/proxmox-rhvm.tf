@@ -30,13 +30,16 @@ resource "proxmox_virtual_environment_vm" "rhvm" {
 
   node_name   = each.value.node
   name        = each.value.name
+  vm_id       = var.rhvm_vmids[each.key]
   description = "HCP TF provisioned rhvm VM ${each.value.name}"
   tags        = ["bootc"]
 
-  # Clone from template (VMID auto-allocated by Proxmox)
+  # Clone from template (VMID auto-allocated by Proxmox). node_name names the
+  # source node the template lives on, enabling cross-node clones to other nodes.
   clone {
-    vm_id = var.rhvm_template_vmid
-    full  = true
+    vm_id     = var.rhvm_template_vmid
+    node_name = var.rhvm_template_node
+    full      = true
   }
 
   cpu {
@@ -58,8 +61,12 @@ resource "proxmox_virtual_environment_vm" "rhvm" {
     model  = "virtio"
   }
 
+  # Agent disabled so VM creation does not block on the guest agent publishing
+  # network interfaces. The VMs were never getting an IP (no DHCP/network config
+  # on the bridge), so the agent had nothing to report and the create hung the
+  # full timeout. Re-enable once VM networking is sorted out.
   agent {
-    enabled = true
+    enabled = false
   }
 
   # Attach cloud-init user-data
