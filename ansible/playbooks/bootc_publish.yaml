@@ -1,13 +1,18 @@
 ---
-# Playbook: Publish the bootc image to registry/storage
+# Playbook: Publish the bootc image to the Quay registry.
 # Workflow Stage: Image Publish
-# This stub references the bootc_publish role.
+#
+# Pushes a locally built image (default quay.io/ncdv/rhel10-base:<tag>) to Quay
+# with robot credentials supplied via `op run`. Run:
+#
+#   op run --env-file images/op-run.publish.example -- \
+#     ansible-playbook ansible/playbooks/bootc_publish.yaml \
+#     -e bootc_publish_tag=rhel10-bootc-20260617.1
+#
+# Override bootc_publish_source_image if the local tag differs from the target.
 
 - name: Publish bootc image
   hosts: localhost
   gather_facts: false
   roles:
     - role: bootc_publish
-      # Registry/credentials not referenced in this scaffold
-  vars:
-    # Registry, image tag, etc. go here in future features

@@ -5,6 +5,17 @@
 bootc_base_image: satellite.d3hl.site/ncdv/dev/rhel10-img/rhel_10_image_mode/d3-homelab:rhel10-bootc
 image_tag: rhel10-bootc-YYYYMMDD.N
 
+# Bake entitled packages (needs RH entitlement at build time). When true, the
+# Containerfile registers with subscription-manager via build secrets
+# (rhsm_user/rhsm_pass) and unregisters + cleans in the same layer.
+bootc_entitled_install: true
+bootc_entitled_packages:
+  - qemu-guest-agent
+  - cloud-init
+bootc_entitled_services:
+  - qemu-guest-agent.service
+  - cloud-init.service
+
 bootc_operator_username: d3
 bootc_operator_groups:
   - wheel

@@ -18,7 +18,7 @@ import pathlib
 import subprocess
 import sys
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
+REPO = pathlib.Path(__file__).resolve().parents[1]
 TF_DIR = REPO / "terraform" / "environments" / "dev"
 OUT = REPO / "ansible" / "inventories" / "terraform.generated.yml"
 

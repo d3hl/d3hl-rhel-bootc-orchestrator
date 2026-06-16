@@ -1,6 +1,6 @@
 # d3hl-rhel-bootc-orchestrator progress
 
-Last updated: 2026-06-14
+Last updated: 2026-06-17
 
 ## Current Verified State
 
@@ -16,10 +16,21 @@ Last updated: 2026-06-14
 - Bootc Linear issues backfilled (NCD-20 through NCD-27); ARCH-001 synced as Done (NCD-21).
 - `TF-001` HCP Terraform Proxmox-first provisioning contract scaffolded and passing on 2026-06-12 (`terraform/environments/dev/`, `terraform/modules/proxmox-bootc-vm/`) using the preferred `bpg/proxmox` provider pinned `~> 0.109`; no live apply and no provider credentials in repo `.tf`.
 - `TF-002` dev environment made apply-ready and passing on 2026-06-14: corrected `bpg/proxmox` schema defects introduced by a crew write (duplicate `required_providers`, `proxmox_virtual_environment_file` `node`→`node_name` + missing `datastore_id`, VM `disk` `storage`→`datastore_id`/missing `interface`/string size), restored the missing `cloudinit-user-data.yaml.tftpl`, fixed the dangling `module.bootc_vm` outputs, and baked in real values (nodes nodeA/nodeB/nodeD for rhvm-01/02/03, disk `cephVM`, snippets `cFS`, bridge `vsvc`, SSH key `op://d3HLPRV/d3_ops/public key`, HCP org `ncdv`/project `bootc`/workspace `Komodo`). Added `docs/runbooks/proxmox-bootc-apply.md`. `terraform validate` + `./init.sh` pass; no live apply was run.
+- `TF-003` LIVE HCP apply performed on 2026-06-17 (operator-approved in-session): provisioned three bootc VMs — rhvm-01=310 (nodeA), rhvm-02=311 (nodeB), rhvm-03=312 (nodeD) — cloned from template 9001 on nodeF. Required provider fixes: `ssh{}` block (snippets upload over SSH, not the API), `clone.node_name=nodeF` (node-local template), explicit `rhvm_vmids` map (parallel-clone VMID collisions), and `agent.enabled` toggling. `Apply complete! 6 added`.
+- `PUBLISH-001` LIVE image build+push performed on 2026-06-17 (operator-approved): built RHEL 10.2 bootc images FROM `registry.redhat.io/rhel10/rhel-bootc:latest` and pushed to `quay.io/ncdv/rhel10-base`. `.1` (no agent) digest `sha256:26fa4197…`; `.2` with `qemu-guest-agent` + `cloud-init` baked in (entitled in-build via subscription-manager, no creds/entitlement leaked) digest `sha256:57a2fa6d…`. `bootc_publish` Ansible role implemented and verified; Quay recorded in `registry/README.md`.
+- `HANDOFF-001` (Terraform→Ansible inventory) wired but **blocked**: `outputs.tf` `ansible_inventory` returns null IPs because the live VMs lack a reporting guest agent; `ansible/gen_terraform_inventory.py` refuses to emit a broken inventory.
 
 ## Current Objective
 
-`TF-002` complete (dev env validates and is apply-ready as code; apply runbook written). Live HCP Terraform plan/apply remains **gated** and out of scope until explicitly approved with recorded pre-check evidence: before any apply the operator must set the HCP workspace variable sets (`proxmox_api_token`, `ci_ssh_public_key`, `proxmox_api_url`), enable `snippets` content on `cFS` for nodeA/nodeB/nodeD, and resolve the provider `insecure`/TLS decision (see the runbook). Next harness feature: highest-priority unfinished item in `feature_list.json` (e.g. `ANSIBLE-001`).
+`HANDOFF-001` is the active (blocked) feature: wire the Ansible `bootc_targets` inventory from Terraform outputs. It is blocked because the live VMs (310/311/312) report no IP — they first-booted before VM networking was fixed and the base image had no `qemu-guest-agent`. **Unblock path:** rebuild the VMs from the `PUBLISH-001` `.2` image (agent baked in, `agent.enabled=true` already restored in `outputs`/provider) with networking in place, then re-run the dev apply and `ansible/gen_terraform_inventory.py`. After that, fold the live build flow into the `bootc_build` role stub.
+
+## Live Actions Log (in-session approvals)
+
+The harness gates live HCP/registry/Red Hat/Proxmox actions behind explicit approval + recorded evidence. The following live actions were approved by the operator in-session on 2026-06-17 and are evidenced under the features above:
+
+- Live HCP Terraform apply to Proxmox (`TF-003`).
+- Live bootc image build + push to Quay (`PUBLISH-001`).
+- In-build `subscription-manager register` using `op://d3HL/<Red Hat Console: ndcv-org>` for the entitled package install (`PUBLISH-001`), unregistered + cleaned in the same layer.
 
 ## Verification Evidence
 
@@ -43,19 +54,29 @@ Last updated: 2026-06-14
 - Ansible checks skipped because `ansible-playbook` and `ansible-lint` are not installed locally.
 - Git whitespace check completed.
 - 2026-06-12 `TF-001`: `terraform fmt -check -recursive terraform` rc 0; `terraform init -backend=false` + `validate` succeeded for `terraform/environments/dev` and `terraform/modules/proxmox-bootc-vm` (provider `bpg/proxmox` 0.109.0 resolved from registry); `./init.sh` passed rc 0.
+- 2026-06-17 `TF-003` live apply: `terraform -chdir=terraform/environments/dev apply -auto-approve` → `Apply complete! Resources: 6 added` (snippet files + VMs 310/311/312 on nodeA/nodeB/nodeD from template 9001 on nodeF). Provider/clone/VMID/agent fixes applied first; `./init.sh` → static baseline complete.
+- 2026-06-17 `PUBLISH-001` `.1` pushed `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.1` (registry digest `sha256:26fa41970ef519a3531ff18ac2cec6aeae0929840f159029fc356d773c65e42a`, FROM RHEL 10.2 bootc).
+- 2026-06-17 `PUBLISH-001` `.2` pushed `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.2` (pushed digest `sha256:57a2fa6dac8672f6ae20c18cb2edf160c048d494d5b3c695182914bd32e69aa9`). In-image: `qemu-guest-agent.service`/`cloud-init.service`/`sshd.service` `enabled`; `qemu-guest-agent-10.1.0` + `cloud-init-24.4` installed; `subscription-manager identity` "not registered", 0 entitlement certs, 0 consumer certs.
+- 2026-06-17 `bootc_publish` role verified: `op run --env-file images/op-run.publish.example -- ansible-playbook ansible/playbooks/bootc_publish.yaml -e bootc_publish_tag=rhel10-bootc-20260617.1` re-pushed `sha256:26fa4197…`. `ansible-playbook --syntax-check` passed for all playbooks; `./init.sh` → static baseline complete.
+- 2026-06-17 `HANDOFF-001`: `ansible-inventory --graph` parses cleanly with `bootc_targets` empty; `terraform output ansible_inventory` returns `ansible_host=null` (no agent IP), so `gen_terraform_inventory.py` refuses to write — expected, blocked.
 
 ## Blockers / Risks
 
 - HCP Terraform, AAP, Quay/private registry, Red Hat subscription, and Proxmox credentials must remain references only.
 - Live integration must remain gated behind explicit approval and recorded pre-check evidence.
 - `d3HLPRV` is the only approved 1Password vault for this repo's documented secret references.
-- `cloud-init` and `qemu-guest-agent` package installs require RH entitlement on the build host; operator profile is baked at image build time instead.
+- `cloud-init` and `qemu-guest-agent` package installs require RH entitlement; as of 2026-06-17 (`PUBLISH-001`) they are baked in via an in-build `subscription-manager register` using build secrets, with unregister + clean in the same layer so no creds/entitlement certs persist. Earlier images (and the live VMs cloned from template 9001) predate this and have no agent — hence the null IPs in `HANDOFF-001`.
+- The live VMs (310/311/312) currently report no IP: they need a rebuild from the `PUBLISH-001` `.2` image with networking in place before Ansible can reach them.
 - Proxmox API token scope was sufficient for earlier read-only node, storage, and VMID evidence, but live registration was completed through the Ansible SSH/CLI path with 1Password `d3HLPRV` SSH/become references.
 - `PVE-TEMPLATE-001` is implemented and live-verified; do not rerun with `pve_template_allow_replace_any=true` unless a future rebuild is explicitly approved.
 - Linear sync 2026-06-09: NCD-29 moved to Done with live `qm config 9001` evidence. Repo harness remains authoritative.
 
 ## Recommended Next Step
 
-Run `./init.sh` again, mark `PVE-TEMPLATE-001` passing in Linear if not already
-synced, then start `TF-001` for the HCP Terraform Proxmox-first provisioning
-contract.
+Unblock `HANDOFF-001`: rebuild the dev VMs from `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.2`
+(agent baked in) with networking in place, then re-run
+`terraform -chdir=terraform/environments/dev apply` and
+`python3 ansible/gen_terraform_inventory.py` so `bootc_targets` populates with
+real IPs. Then fold the live build flow into the `bootc_build` role stub and
+point `bootc_provision`/`bootc_validate` at the populated `bootc_targets`.
+Sync Linear: `TF-003` and `PUBLISH-001` to Done with the recorded evidence.

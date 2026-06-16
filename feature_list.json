@@ -1,6 +1,6 @@
 {
   "project": "d3hl-rhel-bootc-orchestrator",
-  "last_updated": "2026-06-14",
+  "last_updated": "2026-06-17",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -76,7 +76,7 @@
       "evidence": [
         "2026-06-07 registry/README.md defines satellite.d3hl.site registry contract, sudo podman boundary, base image satellite.d3hl.site/ncdv/dev/rhel10-img/rhel_10_image_mode/d3-homelab:rhel10-bootc, aap username, 1Password password reference op://d3HLPRV/Rhel Satelite/PAT for mcp, tag/promotion rules, validation commands, and rollback hints; ./init.sh passed from /home/d3/Github/d3hl-rhel-bootc-orchestrator"
       ],
-      "notes": "No repository creation, registry login, image pull, image build, or image push in this feature. d3HLPRV is the only approved 1Password vault for documented secret references in this repo."
+      "notes": "No repository creation, registry login, image pull, image build, or image push in this feature. d3HLPRV is the only approved 1Password vault for documented secret references in this repo. 2026-06-17: Quay (quay.io/ncdv/rhel10-base) added as a sanctioned publish target alongside satellite.d3hl.site; robot credential references op://d3HLPRV/Quay/{robot,robot_password}; see PUBLISH-001 for the live build/push and registry/README.md for the contract."
     },
     {
       "id": "IMAGE-001",
@@ -197,7 +197,7 @@
         "./init.sh succeeds"
       ],
       "evidence": [],
-      "notes": "No AAP workflow import or job launch in this feature."
+      "notes": "No AAP workflow import or job launch in this feature. 2026-06-17: the bootc_publish role is now implemented and verified outside this scaffold feature (see PUBLISH-001); remaining scaffold stages (bootc_build, bootc_provision, AAP export) are still stubs."
     },
     {
       "id": "CI-001",
@@ -241,6 +241,81 @@
       ],
       "evidence": [],
       "notes": "Live deployment remains out of scope until separately approved."
+    },
+    {
+      "id": "TF-003",
+      "priority": 10,
+      "area": "terraform",
+      "title": "Live HCP apply: provision dev bootc VMs on Proxmox",
+      "description": "Run the gated HCP Terraform apply to provision the three dev bootc VMs on Proxmox, fixing the provider/clone/VMID/agent defects surfaced during the first live apply.",
+      "user_visible_behavior": "Three bootc VMs (rhvm-01/02/03) exist on Proxmox nodes nodeA/nodeB/nodeD, cloned from template 9001.",
+      "dependencies": [
+        "TF-002",
+        "PVE-TEMPLATE-001"
+      ],
+      "status": "passing",
+      "verification": [
+        "terraform validate succeeds for terraform/environments/dev",
+        "terraform apply completes (HCP org ncdv, workspace Komodo)",
+        "provisioned VMs visible in terraform output rhvm_vms",
+        "./init.sh succeeds"
+      ],
+      "evidence": [
+        "2026-06-17 LIVE APPLY approved in-session by operator. Diagnosed and fixed a chain of apply failures in terraform/environments/dev: (1) snippet upload failed over SSH -> added provider ssh{} block (agent=false, username, private_key) + vars proxmox_ssh_username/proxmox_ssh_private_key (op://d3HLPRV/d3_ops/private key); the Proxmox API cannot upload content_type=snippets so bpg transfers them via SSH. Operator added proxmox_ssh_private_key as a sensitive HCP workspace variable. (2) VM clone could not find template 9001 -> added clone.node_name=var.rhvm_template_node (nodeF); the template is node-local. (3) parallel clones collided on auto-allocated VMID -> added explicit rhvm_vmids map + vm_id; final VMIDs 310/311/312. (4) guest-agent wait timed out (VMs had no IP) -> set agent.enabled=false to converge.",
+        "2026-06-17 terraform -chdir=terraform/environments/dev apply -auto-approve -> 'Apply complete! Resources: 6 added': cloud-init snippet files + VMs rhvm-01=310 (nodeA), rhvm-02=311 (nodeB), rhvm-03=312 (nodeD), all cloned from template 9001 on nodeF.",
+        "2026-06-17 ./init.sh -> static baseline complete."
+      ],
+      "notes": "Live HCP apply was performed under in-session operator approval; this supersedes TF-002's 'no live apply' note. terraform/*.tf, ansible.cfg, and the generated inventory are gitignored local artifacts in this repo. Guest-agent IP reporting is NOT yet working on these VMs: they first-booted before VM networking was fixed and the base image lacked qemu-guest-agent. Rebuild from the PUBLISH-001 .2 image (agent baked in) to get IPs. Tracked in HANDOFF-001."
+    },
+    {
+      "id": "PUBLISH-001",
+      "priority": 11,
+      "area": "image",
+      "title": "Build RHEL 10 bootc image with guest agent and publish to Quay",
+      "description": "Build the d3HL RHEL 10 bootc base image from the upstream Red Hat base, bake in qemu-guest-agent + cloud-init via in-build subscription-manager, and push to Quay through a reproducible Ansible publish role.",
+      "user_visible_behavior": "A versioned RHEL 10 bootc image with the guest agent baked in is available at quay.io/ncdv/rhel10-base and is pushable via Ansible.",
+      "dependencies": [
+        "IMAGE-001",
+        "REGISTRY-001"
+      ],
+      "status": "passing",
+      "verification": [
+        "sudo podman build succeeds from the rendered context",
+        "image pushed to quay.io/ncdv/rhel10-base",
+        "qemu-guest-agent and cloud-init enabled in the image; no credentials or entitlement certs leaked",
+        "ansible-playbook --syntax-check ansible/playbooks/bootc_publish.yaml succeeds",
+        "./init.sh succeeds"
+      ],
+      "evidence": [
+        "2026-06-17 LIVE BUILD+PUSH approved in-session. Rendered context via render_bootc_image_context.yml with bootc_base_image=registry.redhat.io/rhel10/rhel-bootc:latest. Built and pushed quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.1 (no agent); pushed digest sha256:d4e3cf60d58e76ea31c239f90e97bad2bbcd7d9ba1d3fef817f5d436c4523943; verified on Quay (registry digest sha256:26fa41970ef519a3531ff18ac2cec6aeae0929840f159029fc356d773c65e42a, FROM RHEL 10.2 bootc).",
+        "2026-06-17 added guarded entitled-install to images/templates/Containerfile.bootc.j2 (bootc_entitled_install; build secrets rhsm_user/rhsm_pass -> subscription-manager register -> dnf install qemu-guest-agent cloud-init -> unregister + clean in one layer) and documented vars in images/build-vars.example.yml. RHSM creds referenced as op://d3HL/<Red Hat Console: ndcv-org UUID>/{username,password}, authorized in-session.",
+        "2026-06-17 built+pushed quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.2; pushed digest sha256:57a2fa6dac8672f6ae20c18cb2edf160c048d494d5b3c695182914bd32e69aa9. In-image verify: qemu-guest-agent.service/cloud-init.service/sshd.service all 'enabled'; qemu-guest-agent-10.1.0 + cloud-init-24.4 installed; subscription-manager identity 'not registered', 0 entitlement certs, 0 consumer certs (no leak).",
+        "2026-06-17 bootc_publish role filled (login/tag/push/digest/cleanup) and verified end-to-end: op run --env-file images/op-run.publish.example -- ansible-playbook ansible/playbooks/bootc_publish.yaml -e bootc_publish_tag=rhel10-bootc-20260617.1 re-pushed digest sha256:26fa41970ef519a3531ff18ac2cec6aeae0929840f159029fc356d773c65e42a. registry/README.md records the Quay target; images/op-run.publish.example maps QUAY_ROBOT/QUAY_ROBOT_PASSWORD. ./init.sh -> static baseline complete."
+      ],
+      "notes": "Build-host fixes: WSL netavark/nft -> podman build --network=host; sudo strips env -> sudo --preserve-env for --secret env=; op:// item title containing ':' -> reference the item by UUID. The build driver is currently a local script (/tmp/build_and_push_rhel10.sh); the bootc_build role is still a stub - fold the build flow into it next. Quay robot creds op://d3HLPRV/Quay/{robot,robot_password}."
+    },
+    {
+      "id": "HANDOFF-001",
+      "priority": 7,
+      "area": "ansible",
+      "title": "Wire Terraform outputs into the Ansible bootc_targets inventory",
+      "description": "Expose provisioned VM facts (IP/node/vmid) as a Terraform output and generate the Ansible bootc_targets inventory from it so Ansible can configure the VMs.",
+      "user_visible_behavior": "Ansible's bootc_targets group is populated from Terraform outputs once the VMs report an IP.",
+      "dependencies": [
+        "TF-003"
+      ],
+      "status": "blocked",
+      "verification": [
+        "terraform output ansible_inventory renders bootc_targets hosts",
+        "ansible/gen_terraform_inventory.py writes terraform.generated.yml when IPs are present",
+        "ansible-inventory --graph shows bootc_targets populated",
+        "./init.sh succeeds"
+      ],
+      "evidence": [
+        "2026-06-17 added ipv4 + ansible_inventory outputs to terraform/environments/dev/outputs.tf; created ansible/gen_terraform_inventory.py (refuses to write when any IP is null), ansible/inventories/group_vars/bootc_targets.yml (ansible_user d3; key via BOOTC_SSH_PRIVATE_KEY_FILE referencing op://d3HLPRV/d3_ops/private key); pointed ansible.cfg at the inventory directory. ansible-inventory --graph parses cleanly; bootc_targets currently empty.",
+        "2026-06-17 BLOCKED: terraform output ansible_inventory returns ansible_host=null for all three VMs because the guest agent reports no interfaces (VMs 310/311/312 first-booted before networking and lack qemu-guest-agent). gen_terraform_inventory.py correctly refuses to write a broken inventory."
+      ],
+      "notes": "Unblock by rebuilding the VMs from the PUBLISH-001 .2 image (qemu-guest-agent baked in) with networking in place, then re-running apply + ansible/gen_terraform_inventory.py. outputs.tf, ansible.cfg, group_vars, and the generated inventory are gitignored local artifacts."
     }
   ]
 }

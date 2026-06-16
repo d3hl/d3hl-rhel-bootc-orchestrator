@@ -21,6 +21,32 @@ with the secret value in git, Linear, logs, or prompts.
 The shared workspace secrets baseline names vault `d3HLPRV`; it is the only
 approved 1Password vault for this repo's documented secret references.
 
+## Quay publish target
+
+Quay is a sanctioned publish target for the RHEL 10 bootc base image, alongside
+`satellite.d3hl.site`.
+
+| Field | Value |
+|-------|-------|
+| Registry | `quay.io` |
+| Repository | `quay.io/ncdv/rhel10-base` |
+| Auth | Robot account |
+| Robot username reference | `op://d3HLPRV/Quay/robot` |
+| Robot password reference | `op://d3HLPRV/Quay/robot_password` |
+| Tag convention | `rhel10-bootc-YYYYMMDD.N` |
+
+The push is reproducible through Ansible (`ansible/roles/bootc_publish`):
+
+```bash
+op run --env-file images/op-run.publish.example -- \
+  ansible-playbook ansible/playbooks/bootc_publish.yaml \
+  -e bootc_publish_tag=rhel10-bootc-YYYYMMDD.N
+```
+
+The robot credentials are 1Password references only; they are resolved into
+`QUAY_ROBOT` / `QUAY_ROBOT_PASSWORD` at run time by `op run` and never written
+to git, logs, or `auth.json`. The same `sudo podman` boundary applies.
+
 ## Repository naming
 
 The initial image repository path is:

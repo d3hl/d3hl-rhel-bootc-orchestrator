@@ -5,10 +5,21 @@ ARG IMAGE_TAG={{ image_tag | default('rhel10-bootc-dev') }}
 LABEL org.d3hl.bootc.image-tag="${IMAGE_TAG}"
 
 # Base image already includes openssh-server, sudo, and cloud-utils-growpart.
-# Optional packages below require RH entitlement during build. Enable only on a
-# subscribed build host.
-# RUN dnf -y install qemu-guest-agent cloud-init && dnf clean all
-# RUN systemctl enable qemu-guest-agent.service cloud-init.service
+{% if bootc_entitled_install | default(true) %}
+# Install entitled packages by registering with subscription-manager inside the
+# build. Credentials arrive as podman build secrets (rhsm_user/rhsm_pass), and
+# the same RUN unregisters + cleans so neither the credentials nor entitlement
+# certs persist in any image layer.
+RUN --mount=type=secret,id=rhsm_user --mount=type=secret,id=rhsm_pass \
+    subscription-manager register \
+      --username "$(cat /run/secrets/rhsm_user)" \
+      --password "$(cat /run/secrets/rhsm_pass)" \
+ && dnf -y install {{ bootc_entitled_packages | default(['qemu-guest-agent', 'cloud-init']) | join(' ') }} \
+ && dnf clean all \
+ && subscription-manager unregister \
+ && subscription-manager clean
+RUN systemctl enable {{ (bootc_entitled_services | default(['qemu-guest-agent.service', 'cloud-init.service'])) | join(' ') }}
+{% endif %}
 
 RUN systemctl enable sshd.service
 

@@ -1,100 +1,89 @@
 # Session handoff
 
-Last updated: 2026-06-12
+Last updated: 2026-06-17
 
 ## Current Task
 
-`TF-001` complete: HCP Terraform Proxmox-first provisioning contract scaffolded
-with the preferred `bpg/proxmox` provider (pinned `~> 0.109`, resolved 0.109.0),
-`terraform validate` and `./init.sh` passing, no live apply and no provider
-credentials in repo `.tf`. Files: `terraform/environments/dev/{versions,variables,main,outputs}.tf`,
-`terraform/modules/proxmox-bootc-vm/{versions,variables,main,outputs}.tf` and its README.
-Next feature: highest-priority unfinished item in `feature_list.json`.
+`HANDOFF-001` (active, **blocked**): wire the Ansible `bootc_targets` inventory
+from Terraform outputs. Blocked because the live VMs report no IP (no guest
+agent). This session also completed two operator-approved live milestones:
+`TF-003` (live HCP apply provisioning 3 bootc VMs) and `PUBLISH-001` (RHEL 10
+bootc image with `qemu-guest-agent` baked in, pushed to Quay; `bootc_publish`
+role implemented).
 
 ## Artifact summary
 
 | Field | Value |
 |-------|-------|
-| OCI image | `satellite.d3hl.site/ncdv/dev/rhel10-img/rhel_10_image_mode/d3-homelab:rhel10-bootc-20260606.1` |
-| OCI digest | `sha256:0efcf2d0b0144bd166165cb4b408517cd134652792b4a2352b8fe39fb821ed21` |
-| qcow2 | `nodeF:/mnt/pve/cFS/import/rhel10-bootc-20260606.1.qcow2` (~1.3 GiB) |
-| qcow2 sha256 | `5efb97c95c9ce3045994551da3b9e5bda94a4100aefdb337922de6066d8d1b7c` |
+| Quay image (with agent) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.2` |
+| `.2` pushed digest | `sha256:57a2fa6dac8672f6ae20c18cb2edf160c048d494d5b3c695182914bd32e69aa9` |
+| Quay image (no agent) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.1` |
+| `.1` registry digest | `sha256:26fa41970ef519a3531ff18ac2cec6aeae0929840f159029fc356d773c65e42a` |
+| Live VMs | rhvm-01=310 (nodeA), rhvm-02=311 (nodeB), rhvm-03=312 (nodeD) |
+| Clone template | VMID 9001 on nodeF |
+| HCP | org `ncdv`, project `bootc`, workspace `Komodo` |
 
 ## Files Touched
 
-- `images/templates/config.toml.j2`
-- `ansible/playbooks/convert_bootc_to_qcow2.yml`
-- `ansible/playbooks/preflight_proxmox_template.yml`
-- `ansible/playbooks/register_bootc_proxmox_template.yml`
-- `ansible/inventories/proxmox-first.yml`
-- `ansible/roles/bootc_proxmox_template/defaults/main.yml`
-- `ansible/roles/bootc_proxmox_template/tasks/main.yml`
-- `ansible/roles/bootc_proxmox_template/README.md`
-- `images/validation-checklist.md`
-- `docs/runbooks/proxmox-bootc-template.md`
-- `docs/codex-handoff-proxmox-vm-template.md`
-- `feature_list.json`
-- `session-handoff.md`
-- `claude-progress.md`
+- `images/templates/Containerfile.bootc.j2` (guarded entitled-install block)
+- `images/build-vars.example.yml` (entitled-install vars)
+- `images/op-run.publish.example` (new — Quay robot env mapping)
+- `registry/README.md` (Quay publish target section)
+- `ansible/roles/bootc_publish/{tasks,defaults,README}.md` (role filled)
+- `ansible/playbooks/bootc_publish.yaml` (wired)
+- `ansible/gen_terraform_inventory.py` (new — moved out of inventories/)
+- `feature_list.json`, `claude-progress.md`, `session-handoff.md`
+- Gitignored local artifacts: `terraform/environments/dev/{main,variables,outputs,proxmox-rhvm}.tf`, `ansible.cfg`, `ansible/inventories/group_vars/bootc_targets.yml`
 
 ## Verification
 
-- Passed: `bootc-image-builder` produced `/tmp/bootc-qcow2-out/qcow2/disk.qcow2`
-- Passed: staged qcow2 at `/var/tmp/rhel10-bootc-20260606.1.qcow2` on the build host; current target path is `nodeF:/mnt/pve/cFS/import/rhel10-bootc-20260606.1.qcow2`
-- Passed: `ansible-playbook --syntax-check ansible/playbooks/register_bootc_proxmox_template.yml`
-- Passed: `ansible-playbook ansible/playbooks/register_bootc_proxmox_template.yml` failed safely at the localhost assertion when `pve_template_node` was omitted, before any Proxmox command could run
-- Passed: `./init.sh` from `/home/d3/Github/d3hl-rhel-bootc-orchestrator`
-- Historical evidence: API-first Proxmox preflight with `op://d3HLPRV/proxmox_env/PROXMOX_API_TOKEN` confirmed API version `9.2.3`, `nodeF` online, VMID `9001` absent cluster-wide, and no `nodeF` config file for VMID `9001`
-- Passed: corrected API storage ID `cephVM` is active and enabled on `nodeF` with `rootdir,images` content
-- Passed: Ansible read-only preflight over SSH/become from `ansible/op-run.proxmox.example` confirmed `cephVM` active, qcow2 checksum `5efb97c95c9ce3045994551da3b9e5bda94a4100aefdb337922de6066d8d1b7c`, and VMID `9001` config rc `2`
-- Passed: first live registration attempt failed safely before mutation due an undefined absent-VMID guard fact; guard was fixed by defaulting `pve_existing_vm_name` to empty when `qm config` returns non-zero
-- Passed: live registration with `op run --env-file ansible/op-run.proxmox.example -- ansible-playbook -i ansible/inventories/proxmox-first.yml ansible/playbooks/register_bootc_proxmox_template.yml -e pve_template_node=nodeF` created VMID `9001`, imported qcow2 into `cephVM`, attached `scsi0` and `ide2`, set boot order, and converted the VM to a template
-- Passed: `qm config 9001` confirmed `template: 1`, `bios: ovmf`, `machine: q35`, `scsihw: virtio-scsi-single`, `scsi0: cephVM:base-9001-disk-1`, `ide2: cephVM:vm-9001-cloudinit,media=cdrom`, `boot: order=scsi0`, and name `rhel10-bootc-20260606-1-tmpl`
-- Passed: `qm list` on `nodeF` shows VMID `9001` as `rhel10-bootc-20260606-1-tmpl`
-- Pending: final `./init.sh` after evidence updates, Linear sync to Done, then `TF-001`
+- Passed: `terraform apply` (dev) → `Apply complete! 6 added` (VMs 310/311/312)
+- Passed: `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.{1,2}` pushed and verified on Quay
+- Passed: `.2` in-image — `qemu-guest-agent`/`cloud-init`/`sshd` enabled; no creds/entitlement leaked
+- Passed: `bootc_publish` role end-to-end (re-push verified)
+- Passed: `ansible-playbook --syntax-check` for all playbooks; `ansible-inventory --graph` parses
+- Passed: `./init.sh` → static baseline complete
+- Blocked: `terraform output ansible_inventory` → `ansible_host=null` (no agent IP); `gen_terraform_inventory.py` refuses to write
 
 ## Blockers / Risks
 
-- qcow2 is root-owned (`0600`) on build host; Proxmox import playbook must run
-  with privileges on the target node or copy via Ansible become.
-- `config.toml` `/var` filesystem customization is invalid on RHEL 10; template
-  updated to root-only + kernel table syntax.
-- Registry push still blocked earlier by satellite auth; local OCI image was used.
-- `pve_template_node` is `nodeF`; VMID `9001` is free by API preflight.
-- The documented/default storage ID `ceph-vm` is wrong for this cluster; use
-  `cephVM` unless the Proxmox storage configuration changes.
-- Live registration was intentionally Ansible SSH/CLI-based. Do not implement or
-  run a Proxmox API mutation path for this feature.
-- Future rebuilds must remain gated behind explicit approval because the role can
-  destroy and recreate VMID `9001` when it matches the expected template name.
-- The role refuses to replace an existing VMID with a different name unless
-  `pve_template_allow_replace_any=true` is explicitly set after approval.
+- Live VMs 310/311/312 report no IP: they first-booted before networking was
+  fixed and lack `qemu-guest-agent`. Rebuild from the `.2` image to unblock.
+- `terraform/*.tf`, `ansible.cfg`, and the generated inventory are gitignored
+  local artifacts — not tracked; do not expect them in `git status`.
+- Live HCP/Quay/Red Hat actions this session were operator-approved in-session
+  (logged in `claude-progress.md` → Live Actions Log). Keep recording approval
+  + evidence at the time of any future live action.
+- The build driver is a local script (`/tmp/build_and_push_rhel10.sh`); the
+  `bootc_build` role is still a stub.
+- Quay robot creds `op://d3HLPRV/Quay/{robot,robot_password}`; RHSM via
+  `op://d3HL/<Red Hat Console: ndcv-org>` (reference by UUID — title has a `:`).
 
 ## Next Session Command
 
 ```bash
 cd /home/d3/Github/d3hl-rhel-bootc-orchestrator
-sed -n '1,260p' docs/runbooks/proxmox-bootc-template.md
 ./init.sh
+# unblock HANDOFF-001: rebuild VMs from rhel10-bootc-20260617.2, re-apply, then:
+python3 ansible/gen_terraform_inventory.py
 ```
 
 ## Linear sync notes
 
 Team **d3HL**. Project **Ansible Automation Orchestrator**.
 
-| Harness | Linear | State (2026-06-07) |
-|---------|--------|---------------------|
+| Harness | Linear | State |
+|---------|--------|-------|
 | BOOTC-000 | NCD-20 | Done |
 | ARCH-001 | NCD-21 | Done |
 | REGISTRY-001 | NCD-22 | Done |
 | IMAGE-001 | NCD-24 | Done |
 | PVE-TEMPLATE-001 | NCD-29 | Done |
-| TF-001 | NCD-23 | Todo |
+| TF-001 | NCD-23 | Done |
+| TF-002 | — | Done |
+| TF-003 | — | Done (sync needed) |
+| PUBLISH-001 | — | Done (sync needed) |
+| HANDOFF-001 | — | Blocked (sync needed) |
 | ANSIBLE-001 | NCD-25 | Todo |
 | CI-001 | NCD-26 | Backlog |
 | E2E-001 | NCD-27 | Todo |
-
-## Codex entrypoint
-
-Start `TF-001`. Use only `op://d3HLPRV/...` secret references through `op run`;
-do not modify `d3hl-infra-bootc-pipeline`.

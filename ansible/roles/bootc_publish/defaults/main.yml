@@ -1,0 +1,24 @@
+---
+# Publish target for the RHEL 10 bootc base image. Quay is a sanctioned target
+# alongside satellite.d3hl.site (see registry/README.md).
+bootc_publish_registry: quay.io
+bootc_publish_repository: quay.io/ncdv/rhel10-base
+
+# Build identifier tag. Convention: <base>-YYYYMMDD.N (see registry contract).
+# Override per build, e.g. -e bootc_publish_tag=rhel10-bootc-20260617.1
+bootc_publish_tag: "rhel10-bootc-{{ now(utc=true, fmt='%Y%m%d') }}.1"
+
+# Local image to push and the remote ref to push it as. By default the source
+# already carries the target ref (built by bootc_build / podman build -t).
+bootc_publish_source_image: "{{ bootc_publish_repository }}:{{ bootc_publish_tag }}"
+bootc_publish_target_image: "{{ bootc_publish_repository }}:{{ bootc_publish_tag }}"
+
+# Robot credentials are resolved at run time from op:// via `op run` and read
+# from the environment — never stored in git. See images/op-run.publish.example:
+#   QUAY_ROBOT=op://d3HLPRV/Quay/robot
+#   QUAY_ROBOT_PASSWORD=op://d3HLPRV/Quay/robot_password
+bootc_publish_username_env: QUAY_ROBOT
+bootc_publish_password_env: QUAY_ROBOT_PASSWORD
+
+# All build/pull/tag/push go through sudo podman per registry/README.md.
+bootc_publish_podman: "sudo podman"

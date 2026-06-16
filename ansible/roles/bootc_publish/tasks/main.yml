@@ -1,0 +1,65 @@
+---
+- name: Require Quay credentials in the environment
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', bootc_publish_username_env) | length > 0
+      - lookup('ansible.builtin.env', bootc_publish_password_env) | length > 0
+    fail_msg: >-
+      {{ bootc_publish_username_env }} / {{ bootc_publish_password_env }} are not set.
+      Run under op run, e.g.:
+      op run --env-file images/op-run.publish.example --
+      ansible-playbook ansible/playbooks/bootc_publish.yaml
+    quiet: true
+
+- name: Create a temporary authfile directory
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: bootc-publish
+  register: bootc_publish_tmp
+  changed_when: false
+
+- name: Log in to {{ bootc_publish_registry }}
+  ansible.builtin.command:
+    # --password-stdin keeps the secret off argv; username comes from the env.
+    cmd: >-
+      {{ bootc_publish_podman }} login {{ bootc_publish_registry }}
+      --username {{ lookup('ansible.builtin.env', bootc_publish_username_env) }}
+      --password-stdin
+      --authfile {{ bootc_publish_tmp.path }}/auth.json
+    stdin: "{{ lookup('ansible.builtin.env', bootc_publish_password_env) }}"
+  no_log: true
+  changed_when: true
+
+- name: Tag {{ bootc_publish_source_image }} as {{ bootc_publish_target_image }}
+  ansible.builtin.command:
+    cmd: "{{ bootc_publish_podman }} tag {{ bootc_publish_source_image }} {{ bootc_publish_target_image }}"
+  when: bootc_publish_source_image != bootc_publish_target_image
+  changed_when: true
+
+- name: Push {{ bootc_publish_target_image }}
+  ansible.builtin.command:
+    # --digestfile records the pushed digest without a go-template format string.
+    cmd: >-
+      {{ bootc_publish_podman }} push
+      --authfile {{ bootc_publish_tmp.path }}/auth.json
+      --digestfile {{ bootc_publish_tmp.path }}/digest
+      {{ bootc_publish_target_image }}
+  changed_when: true
+
+- name: Read pushed digest
+  ansible.builtin.slurp:
+    src: "{{ bootc_publish_tmp.path }}/digest"
+  register: bootc_publish_digest_raw
+  changed_when: false
+
+- name: Show published image
+  ansible.builtin.debug:
+    msg:
+      - "Published {{ bootc_publish_target_image }}"
+      - "Digest: {{ bootc_publish_digest_raw.content | b64decode }}"
+
+- name: Remove the temporary authfile
+  ansible.builtin.file:
+    path: "{{ bootc_publish_tmp.path }}"
+    state: absent
+  changed_when: false
