@@ -33,6 +33,7 @@ The harness gates live HCP/registry/Red Hat/Proxmox actions behind explicit appr
 - Live bootc image build + push to Quay (`PUBLISH-001`).
 - In-build `subscription-manager register` using `op://d3HL/<Red Hat Console: ndcv-org>` for the entitled package install (`PUBLISH-001`), unregistered + cleaned in the same layer.
 - Live bootc image build + push to Quay through the new `bootc_build` role (`BUILD-ROLE-001`): built/pushed `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3`.
+- Live Proxmox template registration (`PVE-TEMPLATE-001`, additive): converted the `.3` image to qcow2 and registered VMID `9002` (`rhel10-bootc-20260617-3-tmpl`) on nodeF from the agent-baked image.
 
 ## Verification Evidence
 
@@ -62,6 +63,7 @@ The harness gates live HCP/registry/Red Hat/Proxmox actions behind explicit appr
 - 2026-06-17 `bootc_publish` role verified: `op run --env-file images/op-run.publish.example -- ansible-playbook ansible/playbooks/bootc_publish.yaml -e bootc_publish_tag=rhel10-bootc-20260617.1` re-pushed `sha256:26fa4197…`. `ansible-playbook --syntax-check` passed for all playbooks; `./init.sh` → static baseline complete.
 - 2026-06-17 `HANDOFF-001`: `ansible-inventory --graph` parses cleanly with `bootc_targets` empty; `terraform output ansible_inventory` returns `ansible_host=null` (no agent IP), so `gen_terraform_inventory.py` refuses to write — expected, blocked.
 - 2026-06-17 `BUILD-ROLE-001` live build through the new role: `op run --env-file images/op-run.build.example -- ansible-playbook ansible/playbooks/bootc_build.yaml -e bootc_build_tag=rhel10-bootc-20260617.3 -e bootc_base_image=registry.redhat.io/rhel10/rhel-bootc:latest` built `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3`. In-image (`podman run --network=none`): `qemu-guest-agent.service`/`cloud-init.service`/`sshd.service` `enabled`; `qemu-guest-agent-10.1.0` + `cloud-init-24.4`; not registered, 0 entitlement/consumer certs, 0 `/run/secrets`. `bootc_publish` pushed it: pushed digest `sha256:5ed9875c30388e30d4d88c38e6c488e022c7b8d02c8515b9599f6ce8715071b9`. `./init.sh` → static baseline complete.
+- 2026-06-17 `PVE-TEMPLATE-001` second template (VMID `9002`) from the `.3` image: `convert_bootc_to_qcow2.yml -e bootc_base_image=quay.io/ncdv/rhel10-base -e image_tag=rhel10-bootc-20260617.3 -e bootc_qcow2_output_dir=/var/tmp/bootc-qcow2-out-9002` → `disk.qcow2` (1329856512 bytes, sha256 `e62b7e93bdeed9bda273cad93080146b03411ab01adafaed8660faf1cb46b84b`); staged to `nodeF:/var/tmp/rhel10-bootc-20260617.3.qcow2` (remote sha256 matched); `register_bootc_proxmox_template.yml -e pve_template_vmid=9002 -e pve_template_name=rhel10-bootc-20260617-3-tmpl -e pve_qcow2_path=… -e pve_qcow2_sha256=e62b7e93… -e pve_ceph_storage=cephVM -e pve_template_bridge=vmbr0 -e pve_template_remove_qcow2_after_import=true`. `qm config 9002`: `template: 1`, bios ovmf, q35, virtio-scsi-single, `scsi0 cephVM:base-9002-disk-1` (11768M), `ide2 cephVM:vm-9002-cloudinit`, `net0 virtio,bridge=vmbr0`, `agent enabled=1`, `boot order=scsi0`. Fixed a self-referencing-var recursion bug in `convert_bootc_to_qcow2.yml`. `./init.sh` → static baseline complete.
 
 ## Blockers / Risks
 
@@ -76,8 +78,9 @@ The harness gates live HCP/registry/Red Hat/Proxmox actions behind explicit appr
 
 ## Recommended Next Step
 
-Unblock `HANDOFF-001`: rebuild the dev VMs from `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.2`
-(agent baked in) with networking in place, then re-run
+Unblock `HANDOFF-001`: rebuild the dev VMs from the agent-baked template **VMID 9002**
+(`rhel10-bootc-20260617-3-tmpl`, from `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3`)
+with networking in place — point the Terraform clone source at 9002 — then re-run
 `terraform -chdir=terraform/environments/dev apply` and
 `python3 ansible/gen_terraform_inventory.py` so `bootc_targets` populates with
 real IPs. Then point `bootc_provision`/`bootc_validate` at the populated

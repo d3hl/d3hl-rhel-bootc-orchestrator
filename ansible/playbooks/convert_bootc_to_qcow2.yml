@@ -5,8 +5,12 @@
   vars_files:
     - "{{ playbook_dir }}/../../images/build-vars.example.yml"
   vars:
-    bootc_build_dir: "{{ bootc_build_dir | default('/tmp/bootc-build') }}"
-    bootc_qcow2_output_dir: "{{ bootc_qcow2_output_dir | default('/tmp/bootc-qcow2-out') }}"
+    # Plain defaults: `-e bootc_build_dir=…` / `-e bootc_qcow2_output_dir=…` still
+    # override these (extra-vars outrank play vars). Do NOT write them as
+    # "{{ bootc_build_dir | default(...) }}" — a var that references itself is a
+    # recursive loop under current ansible-core and fails the play.
+    bootc_build_dir: /tmp/bootc-build
+    bootc_qcow2_output_dir: /tmp/bootc-qcow2-out
     bootc_image_ref: "{{ bootc_base_image | regex_replace(':.*$', '') }}:{{ image_tag }}"
     bootc_image_builder_image: registry.redhat.io/rhel9/bootc-image-builder:latest
   tasks:

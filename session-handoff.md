@@ -6,10 +6,12 @@ Last updated: 2026-06-17
 
 `HANDOFF-001` (active, **blocked**): wire the Ansible `bootc_targets` inventory
 from Terraform outputs. Blocked because the live VMs report no IP (no guest
-agent). This session also completed two operator-approved live milestones:
-`TF-003` (live HCP apply provisioning 3 bootc VMs) and `PUBLISH-001` (RHEL 10
+agent). This session also completed operator-approved live milestones:
+`TF-003` (live HCP apply provisioning 3 bootc VMs), `PUBLISH-001` (RHEL 10
 bootc image with `qemu-guest-agent` baked in, pushed to Quay; `bootc_publish`
-role implemented).
+role implemented), `BUILD-ROLE-001` (build folded into the `bootc_build` role,
+live-verified via `.3`), and `PVE-TEMPLATE-001` template VMID 9002 from the `.3`
+image. The 9002 template (agent baked in) is the HANDOFF-001 unblock path.
 
 ## Artifact summary
 
@@ -22,7 +24,8 @@ role implemented).
 | Quay image (no agent) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.1` |
 | `.1` registry digest | `sha256:26fa41970ef519a3531ff18ac2cec6aeae0929840f159029fc356d773c65e42a` |
 | Live VMs | rhvm-01=310 (nodeA), rhvm-02=311 (nodeB), rhvm-03=312 (nodeD) |
-| Clone template | VMID 9001 on nodeF |
+| Clone template (no agent) | VMID 9001 on nodeF (`rhel10-bootc-20260606-1-tmpl`) |
+| Clone template (agent baked) | VMID 9002 on nodeF (`rhel10-bootc-20260617-3-tmpl`, from `.3`) |
 | HCP | org `ncdv`, project `bootc`, workspace `Komodo` |
 
 ## Files Touched
@@ -37,6 +40,7 @@ role implemented).
 - `ansible/roles/bootc_build/{tasks,defaults,README}.md` (BUILD-ROLE-001 — stub → real build role)
 - `ansible/playbooks/bootc_build.yaml` (BUILD-ROLE-001 — wired, loads build-vars)
 - `images/op-run.build.example` (BUILD-ROLE-001 — added RHSM build-secret refs)
+- `ansible/playbooks/convert_bootc_to_qcow2.yml` (PVE-TEMPLATE-001 — fixed self-referencing-var recursion)
 - `feature_list.json`, `claude-progress.md`, `session-handoff.md`
 - Gitignored local artifacts: `terraform/environments/dev/{main,variables,outputs,proxmox-rhvm}.tf`, `ansible.cfg`, `ansible/inventories/group_vars/bootc_targets.yml`
 
@@ -49,12 +53,14 @@ role implemented).
 - Passed: `ansible-playbook --syntax-check` for all playbooks (incl. the new `bootc_build.yaml`); `ansible-inventory --graph` parses
 - Passed: `./init.sh` → static baseline complete (after `BUILD-ROLE-001` role/playbook)
 - Passed: `BUILD-ROLE-001` live end-to-end — render → `bootc_build` built `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3`, in-image agent/cloud-init/sshd enabled + no creds/entitlement leak, `bootc_publish` pushed `sha256:5ed9875c…`
+- Passed: `PVE-TEMPLATE-001` second template — converted `.3` to qcow2 (sha256 `e62b7e93…`), staged to nodeF, registered VMID `9002` (`rhel10-bootc-20260617-3-tmpl`); `qm config 9002` shows `template: 1` with agent/q35/ovmf/virtio-scsi/cephVM/cloud-init
 - Blocked: `terraform output ansible_inventory` → `ansible_host=null` (no agent IP); `gen_terraform_inventory.py` refuses to write
 
 ## Blockers / Risks
 
 - Live VMs 310/311/312 report no IP: they first-booted before networking was
-  fixed and lack `qemu-guest-agent`. Rebuild from the `.2` image to unblock.
+  fixed and lack `qemu-guest-agent`. Unblock by re-cloning from template VMID
+  9002 (agent baked in) — point the Terraform clone source at 9002.
 - `terraform/*.tf`, `ansible.cfg`, and the generated inventory are gitignored
   local artifacts — not tracked; do not expect them in `git status`.
 - Live HCP/Quay/Red Hat actions this session were operator-approved in-session
@@ -71,7 +77,7 @@ role implemented).
 ```bash
 cd /home/d3/Github/d3hl-rhel-bootc-orchestrator
 ./init.sh
-# unblock HANDOFF-001: rebuild VMs from rhel10-bootc-20260617.2, re-apply, then:
+# unblock HANDOFF-001: re-clone VMs from template 9002 (agent baked in), re-apply, then:
 python3 ansible/gen_terraform_inventory.py
 ```
 
@@ -85,11 +91,12 @@ Team **d3HL**. Project **Ansible Automation Orchestrator**.
 | ARCH-001 | NCD-21 | Done |
 | REGISTRY-001 | NCD-22 | Done |
 | IMAGE-001 | NCD-24 | Done |
-| PVE-TEMPLATE-001 | NCD-29 | Done |
+| PVE-TEMPLATE-001 | NCD-29 | Done (9002 added — sync needed) |
 | TF-001 | NCD-23 | Done |
 | TF-002 | — | Done |
 | TF-003 | — | Done (sync needed) |
 | PUBLISH-001 | — | Done (sync needed) |
+| BUILD-ROLE-001 | — | Done (sync needed) |
 | HANDOFF-001 | — | Blocked (sync needed) |
 | ANSIBLE-001 | NCD-25 | Todo |
 | CI-001 | NCD-26 | Backlog |
