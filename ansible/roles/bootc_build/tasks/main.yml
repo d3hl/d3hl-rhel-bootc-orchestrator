@@ -1,0 +1,97 @@
+---
+- name: Require a rendered build context
+  ansible.builtin.stat:
+    path: "{{ bootc_build_dir }}/Containerfile"
+  register: bootc_build_containerfile
+  failed_when: not bootc_build_containerfile.stat.exists
+  changed_when: false
+
+- name: Require RHSM credentials when entitled install is enabled
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', bootc_build_rhsm_user_env) | length > 0
+      - lookup('ansible.builtin.env', bootc_build_rhsm_pass_env) | length > 0
+    fail_msg: >-
+      {{ bootc_build_rhsm_user_env }} / {{ bootc_build_rhsm_pass_env }} are not set.
+      Run under op run, e.g.:
+      op run --env-file images/op-run.build.example --
+      ansible-playbook ansible/playbooks/bootc_build.yaml
+    quiet: true
+  when: bootc_entitled_install | bool
+
+- name: Create a temporary build-secret directory
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: bootc-build
+  register: bootc_build_tmp
+  changed_when: false
+  when: bootc_entitled_install | bool
+
+- name: Stage RHSM build secrets
+  # Files (--secret src=) instead of env (--secret env=) so the secret never
+  # touches argv and survives become/sudo without --preserve-env. Mirrors the
+  # temp-authfile idiom in bootc_publish.
+  ansible.builtin.copy:
+    dest: "{{ bootc_build_tmp.path }}/{{ item.name }}"
+    content: "{{ lookup('ansible.builtin.env', item.env) }}"
+    mode: "0600"
+  loop:
+    - { name: rhsm_user, env: "{{ bootc_build_rhsm_user_env }}" }
+    - { name: rhsm_pass, env: "{{ bootc_build_rhsm_pass_env }}" }
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+  when: bootc_entitled_install | bool
+
+- name: Build the bootc image
+  ansible.builtin.command:
+    argv: "{{ bootc_build_base_argv + bootc_build_secret_argv + bootc_build_tail_argv }}"
+  become: true
+  changed_when: true
+  vars:
+    bootc_build_base_argv:
+      - podman
+      - build
+      - "--network={{ bootc_build_network }}"
+      - "--build-arg"
+      - "BOOTC_BASE_IMAGE={{ bootc_base_image }}"
+      - "--build-arg"
+      - "IMAGE_TAG={{ bootc_build_tag }}"
+    # Lazily evaluated: bootc_build_tmp.path is only referenced in the entitled
+    # branch, so it is never read when the tempdir task was skipped.
+    bootc_build_secret_argv: >-
+      {{ ['--secret', 'id=rhsm_user,src=' ~ bootc_build_tmp.path ~ '/rhsm_user',
+          '--secret', 'id=rhsm_pass,src=' ~ bootc_build_tmp.path ~ '/rhsm_pass']
+         if (bootc_entitled_install | bool) else [] }}
+    bootc_build_tail_argv:
+      - "-t"
+      - "{{ bootc_build_target_image }}"
+      - "{{ bootc_build_dir }}"
+
+- name: Verify the built image exists locally
+  ansible.builtin.command:
+    argv:
+      - podman
+      - image
+      - exists
+      - "{{ bootc_build_target_image }}"
+  become: true
+  changed_when: false
+
+- name: Remove the temporary build-secret directory
+  ansible.builtin.file:
+    path: "{{ bootc_build_tmp.path }}"
+    state: absent
+  changed_when: false
+  when: bootc_entitled_install | bool
+
+- name: Show the built image
+  ansible.builtin.debug:
+    msg:
+      - "Built {{ bootc_build_target_image }}"
+      - "From base {{ bootc_base_image }}"
+      - >-
+        Publish with: op run --env-file images/op-run.publish.example --
+        ansible-playbook ansible/playbooks/bootc_publish.yaml
+        -e bootc_publish_tag={{ bootc_build_tag }}
+  changed_when: false

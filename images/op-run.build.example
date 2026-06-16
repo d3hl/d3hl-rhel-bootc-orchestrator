@@ -1,1 +1,7 @@
 BOOTC_OPERATOR_SSH_PUBLIC_KEY=op://d3HLPRV/d3_ops/public key
+# RHSM build secrets for the entitled in-build install (qemu-guest-agent +
+# cloud-init). The Red Hat Console item title contains a ':', so it must be
+# referenced by UUID, not by name. Replace <rhsm-item-uuid> with the real
+# "Red Hat Console: ndcv-org" item UUID.
+RHSM_USER=op://d3HL/b7gbq6kw2w3rs2nfvf4robqz2i/username
+RHSM_PASS=op://d3HL/b7gbq6kw2w3rs2nfvf4robqz2i/password

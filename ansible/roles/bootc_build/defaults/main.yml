@@ -1,0 +1,23 @@
+---
+# Rendered build context produced by the bootc_image_render role / the
+# render_bootc_image_context.yml playbook. bootc_build does not render; it
+# requires a context that already exists here (same contract as
+# convert_bootc_to_qcow2.yml, which requires a rendered config.toml).
+bootc_build_dir: "/tmp/bootc-build"
+
+# Target image. Reuse the publish repository and the YYYYMMDD.N tag convention
+# so the local build already carries the ref that bootc_publish pushes.
+bootc_build_repository: quay.io/ncdv/rhel10-base
+bootc_build_tag: "{{ image_tag | default('rhel10-bootc-' ~ now(utc=true, fmt='%Y%m%d') ~ '.1') }}"
+bootc_build_target_image: "{{ bootc_build_repository }}:{{ bootc_build_tag }}"
+
+# WSL/netavark + nft workaround: build on the host network (PUBLISH-001 notes).
+bootc_build_network: host
+
+# Entitled in-build install (qemu-guest-agent + cloud-init) is driven by the
+# guarded block in images/templates/Containerfile.bootc.j2. When true, RHSM
+# credentials are passed as podman build secrets read from these env vars,
+# which `op run` resolves from op:// at run time. See images/op-run.build.example.
+bootc_entitled_install: true
+bootc_build_rhsm_user_env: RHSM_USER
+bootc_build_rhsm_pass_env: RHSM_PASS

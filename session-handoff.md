@@ -15,6 +15,8 @@ role implemented).
 
 | Field | Value |
 |-------|-------|
+| Quay image (via bootc_build role) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3` |
+| `.3` pushed digest | `sha256:5ed9875c30388e30d4d88c38e6c488e022c7b8d02c8515b9599f6ce8715071b9` |
 | Quay image (with agent) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.2` |
 | `.2` pushed digest | `sha256:57a2fa6dac8672f6ae20c18cb2edf160c048d494d5b3c695182914bd32e69aa9` |
 | Quay image (no agent) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.1` |
@@ -32,6 +34,9 @@ role implemented).
 - `ansible/roles/bootc_publish/{tasks,defaults,README}.md` (role filled)
 - `ansible/playbooks/bootc_publish.yaml` (wired)
 - `ansible/gen_terraform_inventory.py` (new — moved out of inventories/)
+- `ansible/roles/bootc_build/{tasks,defaults,README}.md` (BUILD-ROLE-001 — stub → real build role)
+- `ansible/playbooks/bootc_build.yaml` (BUILD-ROLE-001 — wired, loads build-vars)
+- `images/op-run.build.example` (BUILD-ROLE-001 — added RHSM build-secret refs)
 - `feature_list.json`, `claude-progress.md`, `session-handoff.md`
 - Gitignored local artifacts: `terraform/environments/dev/{main,variables,outputs,proxmox-rhvm}.tf`, `ansible.cfg`, `ansible/inventories/group_vars/bootc_targets.yml`
 
@@ -41,8 +46,9 @@ role implemented).
 - Passed: `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.{1,2}` pushed and verified on Quay
 - Passed: `.2` in-image — `qemu-guest-agent`/`cloud-init`/`sshd` enabled; no creds/entitlement leaked
 - Passed: `bootc_publish` role end-to-end (re-push verified)
-- Passed: `ansible-playbook --syntax-check` for all playbooks; `ansible-inventory --graph` parses
-- Passed: `./init.sh` → static baseline complete
+- Passed: `ansible-playbook --syntax-check` for all playbooks (incl. the new `bootc_build.yaml`); `ansible-inventory --graph` parses
+- Passed: `./init.sh` → static baseline complete (after `BUILD-ROLE-001` role/playbook)
+- Passed: `BUILD-ROLE-001` live end-to-end — render → `bootc_build` built `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3`, in-image agent/cloud-init/sshd enabled + no creds/entitlement leak, `bootc_publish` pushed `sha256:5ed9875c…`
 - Blocked: `terraform output ansible_inventory` → `ansible_host=null` (no agent IP); `gen_terraform_inventory.py` refuses to write
 
 ## Blockers / Risks
@@ -54,8 +60,9 @@ role implemented).
 - Live HCP/Quay/Red Hat actions this session were operator-approved in-session
   (logged in `claude-progress.md` → Live Actions Log). Keep recording approval
   + evidence at the time of any future live action.
-- The build driver is a local script (`/tmp/build_and_push_rhel10.sh`); the
-  `bootc_build` role is still a stub.
+- The build flow is folded into the `bootc_build` role (`BUILD-ROLE-001`,
+  `passing`, live-verified via `rhel10-bootc-20260617.3`); the local script
+  `/tmp/build_and_push_rhel10.sh` is retired.
 - Quay robot creds `op://d3HLPRV/Quay/{robot,robot_password}`; RHSM via
   `op://d3HL/<Red Hat Console: ndcv-org>` (reference by UUID — title has a `:`).
 

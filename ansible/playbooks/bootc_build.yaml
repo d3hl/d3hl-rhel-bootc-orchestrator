@@ -1,13 +1,24 @@
 ---
-# Playbook: Build the bootc image (not publish or provision)
+# Playbook: Build the bootc image (render first, publish after).
 # Workflow Stage: Image Build
-# This stub references the bootc_build role and is intended for local/AAP use.
+#
+# Builds the rendered context in {{ bootc_build_dir }} into
+# quay.io/ncdv/rhel10-base:<tag> via `podman build` (become). When
+# bootc_entitled_install is true, RHSM build secrets (RHSM_USER/RHSM_PASS)
+# arrive via `op run`. Render the context first, then run:
+#
+#   op run --env-file images/op-run.build.example -- \
+#     ansible-playbook ansible/playbooks/bootc_build.yaml \
+#     -e bootc_build_tag=rhel10-bootc-YYYYMMDD.N
+#
+# Then publish with ansible/playbooks/bootc_publish.yaml.
 
 - name: Build bootc image
   hosts: localhost
   gather_facts: false
+  vars_files:
+    # bootc_base_image, image_tag, bootc_entitled_install (and the entitled
+    # package/service lists consumed by the Containerfile template).
+    - "{{ playbook_dir }}/../../images/build-vars.example.yml"
   roles:
     - role: bootc_build
-      # Add build parameters as needed
-  vars:
-    # No variables yet; populate in future features

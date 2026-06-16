@@ -19,10 +19,11 @@ Last updated: 2026-06-17
 - `TF-003` LIVE HCP apply performed on 2026-06-17 (operator-approved in-session): provisioned three bootc VMs — rhvm-01=310 (nodeA), rhvm-02=311 (nodeB), rhvm-03=312 (nodeD) — cloned from template 9001 on nodeF. Required provider fixes: `ssh{}` block (snippets upload over SSH, not the API), `clone.node_name=nodeF` (node-local template), explicit `rhvm_vmids` map (parallel-clone VMID collisions), and `agent.enabled` toggling. `Apply complete! 6 added`.
 - `PUBLISH-001` LIVE image build+push performed on 2026-06-17 (operator-approved): built RHEL 10.2 bootc images FROM `registry.redhat.io/rhel10/rhel-bootc:latest` and pushed to `quay.io/ncdv/rhel10-base`. `.1` (no agent) digest `sha256:26fa4197…`; `.2` with `qemu-guest-agent` + `cloud-init` baked in (entitled in-build via subscription-manager, no creds/entitlement leaked) digest `sha256:57a2fa6d…`. `bootc_publish` Ansible role implemented and verified; Quay recorded in `registry/README.md`.
 - `HANDOFF-001` (Terraform→Ansible inventory) wired but **blocked**: `outputs.tf` `ansible_inventory` returns null IPs because the live VMs lack a reporting guest agent; `ansible/gen_terraform_inventory.py` refuses to emit a broken inventory.
+- `BUILD-ROLE-001` (`passing`): the throwaway local build script is folded into the `bootc_build` role and live-verified end-to-end. `ansible/roles/bootc_build/{tasks,defaults,README}.md` and `ansible/playbooks/bootc_build.yaml` build the rendered context into `quay.io/ncdv/rhel10-base:<tag>` via `podman build` (become, `--network=host`), passing RHSM as `--secret src=<tempfile>` build secrets when entitled. On 2026-06-17 (operator-approved) render → `bootc_build` → `bootc_publish` produced `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3` (pushed digest `sha256:5ed9875c…`); in-image agent/cloud-init/sshd enabled, no creds/entitlement leak. The local script is retired.
 
 ## Current Objective
 
-`HANDOFF-001` is the active (blocked) feature: wire the Ansible `bootc_targets` inventory from Terraform outputs. It is blocked because the live VMs (310/311/312) report no IP — they first-booted before VM networking was fixed and the base image had no `qemu-guest-agent`. **Unblock path:** rebuild the VMs from the `PUBLISH-001` `.2` image (agent baked in, `agent.enabled=true` already restored in `outputs`/provider) with networking in place, then re-run the dev apply and `ansible/gen_terraform_inventory.py`. After that, fold the live build flow into the `bootc_build` role stub.
+`HANDOFF-001` is the active (blocked) feature: wire the Ansible `bootc_targets` inventory from Terraform outputs. It is blocked because the live VMs (310/311/312) report no IP — they first-booted before VM networking was fixed and the base image had no `qemu-guest-agent`. **Unblock path:** rebuild the VMs from the `PUBLISH-001` `.2` image (agent baked in, `agent.enabled=true` already restored in `outputs`/provider) with networking in place, then re-run the dev apply and `ansible/gen_terraform_inventory.py`. The build flow is now folded into the `bootc_build` role (`BUILD-ROLE-001`, `passing` — live-verified via `rhel10-bootc-20260617.3`); the local script is retired.
 
 ## Live Actions Log (in-session approvals)
 
@@ -31,6 +32,7 @@ The harness gates live HCP/registry/Red Hat/Proxmox actions behind explicit appr
 - Live HCP Terraform apply to Proxmox (`TF-003`).
 - Live bootc image build + push to Quay (`PUBLISH-001`).
 - In-build `subscription-manager register` using `op://d3HL/<Red Hat Console: ndcv-org>` for the entitled package install (`PUBLISH-001`), unregistered + cleaned in the same layer.
+- Live bootc image build + push to Quay through the new `bootc_build` role (`BUILD-ROLE-001`): built/pushed `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3`.
 
 ## Verification Evidence
 
@@ -59,6 +61,7 @@ The harness gates live HCP/registry/Red Hat/Proxmox actions behind explicit appr
 - 2026-06-17 `PUBLISH-001` `.2` pushed `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.2` (pushed digest `sha256:57a2fa6dac8672f6ae20c18cb2edf160c048d494d5b3c695182914bd32e69aa9`). In-image: `qemu-guest-agent.service`/`cloud-init.service`/`sshd.service` `enabled`; `qemu-guest-agent-10.1.0` + `cloud-init-24.4` installed; `subscription-manager identity` "not registered", 0 entitlement certs, 0 consumer certs.
 - 2026-06-17 `bootc_publish` role verified: `op run --env-file images/op-run.publish.example -- ansible-playbook ansible/playbooks/bootc_publish.yaml -e bootc_publish_tag=rhel10-bootc-20260617.1` re-pushed `sha256:26fa4197…`. `ansible-playbook --syntax-check` passed for all playbooks; `./init.sh` → static baseline complete.
 - 2026-06-17 `HANDOFF-001`: `ansible-inventory --graph` parses cleanly with `bootc_targets` empty; `terraform output ansible_inventory` returns `ansible_host=null` (no agent IP), so `gen_terraform_inventory.py` refuses to write — expected, blocked.
+- 2026-06-17 `BUILD-ROLE-001` live build through the new role: `op run --env-file images/op-run.build.example -- ansible-playbook ansible/playbooks/bootc_build.yaml -e bootc_build_tag=rhel10-bootc-20260617.3 -e bootc_base_image=registry.redhat.io/rhel10/rhel-bootc:latest` built `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3`. In-image (`podman run --network=none`): `qemu-guest-agent.service`/`cloud-init.service`/`sshd.service` `enabled`; `qemu-guest-agent-10.1.0` + `cloud-init-24.4`; not registered, 0 entitlement/consumer certs, 0 `/run/secrets`. `bootc_publish` pushed it: pushed digest `sha256:5ed9875c30388e30d4d88c38e6c488e022c7b8d02c8515b9599f6ce8715071b9`. `./init.sh` → static baseline complete.
 
 ## Blockers / Risks
 
@@ -77,6 +80,6 @@ Unblock `HANDOFF-001`: rebuild the dev VMs from `quay.io/ncdv/rhel10-base:rhel10
 (agent baked in) with networking in place, then re-run
 `terraform -chdir=terraform/environments/dev apply` and
 `python3 ansible/gen_terraform_inventory.py` so `bootc_targets` populates with
-real IPs. Then fold the live build flow into the `bootc_build` role stub and
-point `bootc_provision`/`bootc_validate` at the populated `bootc_targets`.
-Sync Linear: `TF-003` and `PUBLISH-001` to Done with the recorded evidence.
+real IPs. Then point `bootc_provision`/`bootc_validate` at the populated
+`bootc_targets`. `BUILD-ROLE-001` is done (live-verified via `rhel10-bootc-20260617.3`).
+Sync Linear: `TF-003`, `PUBLISH-001`, and `BUILD-ROLE-001` with the recorded evidence.

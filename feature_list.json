@@ -316,6 +316,30 @@
         "2026-06-17 BLOCKED: terraform output ansible_inventory returns ansible_host=null for all three VMs because the guest agent reports no interfaces (VMs 310/311/312 first-booted before networking and lack qemu-guest-agent). gen_terraform_inventory.py correctly refuses to write a broken inventory."
       ],
       "notes": "Unblock by rebuilding the VMs from the PUBLISH-001 .2 image (qemu-guest-agent baked in) with networking in place, then re-running apply + ansible/gen_terraform_inventory.py. outputs.tf, ansible.cfg, group_vars, and the generated inventory are gitignored local artifacts."
+    },
+    {
+      "id": "BUILD-ROLE-001",
+      "priority": 12,
+      "area": "image",
+      "title": "Fold the local build script into the bootc_build role",
+      "description": "Replace the throwaway local build script (/tmp/build_and_push_rhel10.sh) and the bootc_build role stub with a reproducible Ansible role that builds the rendered context into quay.io/ncdv/rhel10-base via podman build, passing RHSM entitlement as build secrets when entitled install is enabled.",
+      "user_visible_behavior": "Operators build the bootc image with `ansible-playbook ansible/playbooks/bootc_build.yaml` (render first, publish after) instead of an ad-hoc shell script; the pipeline is three reproducible Ansible stages (render -> build -> publish).",
+      "dependencies": [
+        "IMAGE-001",
+        "REGISTRY-001",
+        "PUBLISH-001"
+      ],
+      "status": "passing",
+      "verification": [
+        "ansible-playbook --syntax-check ansible/playbooks/bootc_build.yaml succeeds",
+        "./init.sh succeeds",
+        "LIVE (operator-approved): render -> bootc_build builds quay.io/ncdv/rhel10-base:<tag> locally; bootc_publish pushes it; in-image qemu-guest-agent/cloud-init/sshd enabled with no RHSM creds or entitlement certs leaked"
+      ],
+      "evidence": [
+        "2026-06-17 implemented ansible/roles/bootc_build/{tasks,defaults,README}.md and wired ansible/playbooks/bootc_build.yaml (loads images/build-vars.example.yml, runs bootc_build on localhost). Build runs `podman build` under become with --network=host (WSL netavark workaround) and, when bootc_entitled_install, passes RHSM creds as podman build secrets via --secret src=<tempfile> (no_log, removed after) so no creds touch argv and become does not strip them. Extended images/op-run.build.example with RHSM_USER/RHSM_PASS op:// references (op://d3HL/<rhsm-item-uuid>/{username,password}; item referenced by UUID because the title contains a ':'). ansible-playbook --syntax-check ansible/playbooks/bootc_build.yaml passed; ./init.sh -> static baseline complete (all playbooks syntax-check).",
+        "2026-06-17 LIVE BUILD+PUSH through the new role (operator-approved). op run --env-file images/op-run.build.example -- ansible-playbook render_bootc_image_context.yml then bootc_build.yaml -e bootc_build_tag=rhel10-bootc-20260617.3 -e bootc_base_image=registry.redhat.io/rhel10/rhel-bootc:latest: bootc_build built quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3 (RHSM passed as --secret src tempfiles, removed after). In-image (podman run --network=none): qemu-guest-agent.service/cloud-init.service/sshd.service all 'enabled'; qemu-guest-agent-10.1.0 + cloud-init-24.4 installed; subscription-manager 'not yet registered', 0 entitlement certs, 0 consumer certs, 0 /run/secrets (no leak). bootc_publish then pushed it: pushed digest sha256:5ed9875c30388e30d4d88c38e6c488e022c7b8d02c8515b9599f6ce8715071b9. ./init.sh -> static baseline complete."
+      ],
+      "notes": "Done and live-verified through the role: render -> bootc_build -> bootc_publish produced quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3. The local script /tmp/build_and_push_rhel10.sh is retired. Reuses the temp-secret/no_log/cleanup idiom from bootc_publish and the become+argv + require-rendered-context idiom from convert_bootc_to_qcow2.yml. bootc_build does not render and does not push, matching the single-responsibility split of the other stages. RHSM build secret reference op://d3HL/<Red Hat Console: ndcv-org UUID>/{username,password}; Quay robot creds op://d3HLPRV/Quay/{robot,robot_password}. Folding the bootc_build_dir base default toward registry.redhat.io (build-vars still defaults to satellite) is a possible follow-up."
     }
   ]
 }
