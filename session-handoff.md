@@ -15,7 +15,9 @@ playbooks/roles against the now-reachable `bootc_targets` inventory.
 | Field | Value |
 |-------|-------|
 | Quay image (zsh/git — current .4) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.4` |
-| `.4` pushed digest (zsh/git, current) | `sha256:b9ef024ea924b174b6b5b7f50dd032dfd629908b1c57ac62f39e3a4fb5919a43` |
+| Quay image (zsh/git/ceph — .5) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.5` |
+| `.5` pushed digest | `sha256:47640975df43a07099b9f2421ee5c87184daee1fbb7b444d70fcb38dd57e93e3` |
+| `.4` pushed digest (zsh/git, no ceph) | `sha256:b9ef024ea924b174b6b5b7f50dd032dfd629908b1c57ac62f39e3a4fb5919a43` |
 | `.4` prior digest (zsh/git/ceph — replaced) | `sha256:587737ee35f60fe147db78fadf2cfc3e9152f5a74ee6afc1df50f25ac213d0e4` |
 | Quay image (via bootc_build role) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3` |
 | `.3` pushed digest | `sha256:5ed9875c30388e30d4d88c38e6c488e022c7b8d02c8515b9599f6ce8715071b9` |
