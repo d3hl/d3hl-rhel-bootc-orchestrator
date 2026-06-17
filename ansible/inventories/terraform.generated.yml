@@ -1,0 +1,27 @@
+# GENERATED from `terraform output -json ansible_inventory`.
+# Do not edit by hand — re-run gen_terraform_inventory.py instead.
+{
+  "all": {
+    "children": {
+      "bootc_targets": {
+        "hosts": {
+          "rhvm-01": {
+            "ansible_host": "10.10.30.19",
+            "proxmox_node": "nodeA",
+            "proxmox_vmid": 310
+          },
+          "rhvm-02": {
+            "ansible_host": "10.10.30.17",
+            "proxmox_node": "nodeB",
+            "proxmox_vmid": 311
+          },
+          "rhvm-03": {
+            "ansible_host": "10.10.30.18",
+            "proxmox_node": "nodeD",
+            "proxmox_vmid": 312
+          }
+        }
+      }
+    }
+  }
+}
