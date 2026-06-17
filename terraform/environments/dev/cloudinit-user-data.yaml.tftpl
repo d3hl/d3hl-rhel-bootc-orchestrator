@@ -9,3 +9,20 @@ users:
     ssh_authorized_keys:
       - ${ssh_public_key}
 disable_root: true
+
+# Partition, format, and persistently mount the scsi1 data disk (/dev/sdb) as /home.
+# overwrite: false is idempotent — survives reboots and re-runs without reformatting.
+disk_setup:
+  /dev/sdb:
+    table_type: gpt
+    layout: true
+    overwrite: false
+
+fs_setup:
+  - label: home
+    filesystem: xfs
+    device: /dev/sdb1
+    overwrite: false
+
+mounts:
+  - [LABEL=home, /home, xfs, defaults, 0, 2]

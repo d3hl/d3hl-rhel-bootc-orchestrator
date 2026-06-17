@@ -1,0 +1,145 @@
+---
+- name: Require Ceph credentials in the environment
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', bootc_ceph_conf_env) | length > 0
+      - lookup('ansible.builtin.env', bootc_ceph_keyring_env) | length > 0
+    fail_msg: >-
+      {{ bootc_ceph_conf_env }} / {{ bootc_ceph_keyring_env }} are not set.
+      Run under op run, e.g.:
+      op read "op://d3HLPRV/d3_ops/private key" > /tmp/d3_ops_key && chmod 600 /tmp/d3_ops_key
+      BOOTC_SSH_PRIVATE_KEY_FILE=/tmp/d3_ops_key
+      op run --env-file ansible/op-run.ceph.example --
+      ansible-playbook ansible/playbooks/bootc_ceph_mount.yaml
+    quiet: true
+
+- name: Ensure /etc/ceph directory exists
+  ansible.builtin.file:
+    path: /etc/ceph
+    state: directory
+    mode: "0755"
+
+- name: Write ceph.conf
+  ansible.builtin.copy:
+    content: "{{ lookup('ansible.builtin.env', bootc_ceph_conf_env) }}\n"
+    dest: "{{ bootc_ceph_conf_path }}"
+    mode: "0644"
+
+- name: Write ceph client keyring
+  ansible.builtin.copy:
+    content: "{{ lookup('ansible.builtin.env', bootc_ceph_keyring_env) }}\n"
+    dest: "{{ bootc_ceph_keyring_path }}"
+    mode: "0600"
+  no_log: true
+
+- name: Extract base64 key from keyring for kernel mount
+  ansible.builtin.set_fact:
+    _bootc_ceph_key: >-
+      {{ (lookup('ansible.builtin.env', bootc_ceph_keyring_env)
+          | regex_search('key\s*=\s*(\S+)', '\1')
+          | first) }}
+  no_log: true
+
+# In Linux kernel 6.x, key=<base64> in CephFS mount options is used as a
+# *description* to look up a key in the Linux kernel keyring (not the raw value).
+# The keyring entry must hold the binary-decoded CephX key struct (28 bytes).
+# This step adds the entry so the mount can find it.
+- name: Add CephX key to Linux kernel keyring
+  ansible.builtin.shell:
+    cmd: |
+      python3 -c "
+      import base64, sys
+      sys.stdout.buffer.write(base64.b64decode('{{ _bootc_ceph_key }}'))
+      " | keyctl padd ceph "{{ _bootc_ceph_key }}" @s
+  changed_when: false
+  no_log: true
+
+- name: Write kernel keyring loader script
+  ansible.builtin.copy:
+    dest: /etc/ceph/load-keyring.py
+    mode: "0700"
+    content: |
+      #!/usr/bin/python3
+      """Decode CephX keyring and add to Linux kernel keyring at boot.
+
+      Called by ceph-{{ bootc_ceph_client_name }}-keyring.service before local-fs.target
+      so that fstab / systemd .mount units that use key=<base64> can find the entry.
+      """
+      import re, base64, subprocess, sys
+
+      KEYRING = '/etc/ceph/ceph.client.{{ bootc_ceph_client_name }}.keyring'
+      try:
+          with open(KEYRING) as f:
+              content = f.read()
+      except FileNotFoundError:
+          print(f'ERROR: {KEYRING} not found', file=sys.stderr)
+          sys.exit(1)
+
+      m = re.search(r'key\s*=\s*(\S+)', content)
+      if not m:
+          print('ERROR: no key found in keyring', file=sys.stderr)
+          sys.exit(1)
+
+      key_b64 = m.group(1)
+      key_bin = base64.b64decode(key_b64)
+
+      for ring in ('@u', '@s'):
+          r = subprocess.run(
+              ['keyctl', 'padd', 'ceph', key_b64, ring],
+              input=key_bin, capture_output=True)
+          if r.returncode != 0:
+              print(f'Warning: keyctl padd {ring}: {r.stderr.decode()}', file=sys.stderr)
+
+- name: Write ceph-{{ bootc_ceph_client_name }}-keyring.service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/ceph-{{ bootc_ceph_client_name }}-keyring.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Load CephFS client.{{ bootc_ceph_client_name }} key into Linux kernel keyring
+      DefaultDependencies=no
+      Before=local-fs.target
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/bin/python3 /etc/ceph/load-keyring.py
+
+      [Install]
+      WantedBy=local-fs.target
+
+- name: Enable ceph-{{ bootc_ceph_client_name }}-keyring.service
+  ansible.builtin.systemd:
+    name: "ceph-{{ bootc_ceph_client_name }}-keyring.service"
+    enabled: true
+    daemon_reload: true
+
+- name: Ensure CephFS mount point exists
+  ansible.builtin.file:
+    path: "{{ bootc_ceph_mount_point }}"
+    state: directory
+    mode: "0755"
+
+- name: Load ceph kernel module
+  ansible.builtin.command:
+    cmd: modprobe ceph
+  changed_when: false
+
+- name: Mount {{ bootc_ceph_fs_name }} at {{ bootc_ceph_mount_point }}
+  ansible.posix.mount:
+    src: "{{ bootc_ceph_mon_addrs }}:/"
+    path: "{{ bootc_ceph_mount_point }}"
+    fstype: ceph
+    opts: "{{ bootc_ceph_mount_opts_base }},key={{ _bootc_ceph_key }}"
+    state: mounted
+  no_log: true
+
+- name: Verify CephFS is mounted
+  ansible.builtin.command:
+    cmd: "df -h {{ bootc_ceph_mount_point }}"
+  register: bootc_ceph_df
+  changed_when: false
+
+- name: Show mount
+  ansible.builtin.debug:
+    var: bootc_ceph_df.stdout_lines

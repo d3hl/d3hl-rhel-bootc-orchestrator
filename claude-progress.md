@@ -1,6 +1,6 @@
 # d3hl-rhel-bootc-orchestrator progress
 
-Last updated: 2026-06-17
+Last updated: 2026-06-18
 
 ## Current Verified State
 
@@ -20,10 +20,11 @@ Last updated: 2026-06-17
 - `PUBLISH-001` LIVE image build+push performed on 2026-06-17 (operator-approved): built RHEL 10.2 bootc images FROM `registry.redhat.io/rhel10/rhel-bootc:latest` and pushed to `quay.io/ncdv/rhel10-base`. `.1` (no agent) digest `sha256:26fa4197…`; `.2` with `qemu-guest-agent` + `cloud-init` baked in (entitled in-build via subscription-manager, no creds/entitlement leaked) digest `sha256:57a2fa6d…`. `bootc_publish` Ansible role implemented and verified; Quay recorded in `registry/README.md`.
 - `HANDOFF-001` (`passing`): VMs rebuilt from template 9002 (agent-baked), IPs populated, `gen_terraform_inventory.py` wrote `terraform.generated.yml`, `ansible-inventory --graph` shows `bootc_targets` with all three hosts, `ansible bootc_targets -m ping` → SUCCESS × 3. IPs: `rhvm-01=10.10.30.19` (nodeA), `rhvm-02=10.10.30.17` (nodeB), `rhvm-03=10.10.30.18` (nodeD). VMs also provisioned with 100 GB scsi1 disk mounted as `/home` via cloud-init.
 - `BUILD-ROLE-001` (`passing`): the throwaway local build script is folded into the `bootc_build` role and live-verified end-to-end. `ansible/roles/bootc_build/{tasks,defaults,README}.md` and `ansible/playbooks/bootc_build.yaml` build the rendered context into `quay.io/ncdv/rhel10-base:<tag>` via `podman build` (become, `--network=host`), passing RHSM as `--secret src=<tempfile>` build secrets when entitled. On 2026-06-17 (operator-approved) render → `bootc_build` → `bootc_publish` produced `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3` (pushed digest `sha256:5ed9875c…`); in-image agent/cloud-init/sshd enabled, no creds/entitlement leak. The local script is retired.
+- `CEPH-MOUNT-001` (`passing`): `bootc_ceph_mount` Ansible role mounts CephFS `cFS` at `/mnt/cfs` on all three bootc_targets VMs. Credentials from `op://d3HLPRV/ufj6ka4i7gmqwky7i6djulkrgq` (client.rhel keyring + ceph.conf). Root-cause chain resolved: kernel 6.12 requires binary-decoded CephX key in Linux kernel keyring before CephFS mount — `key=<base64>` is a description lookup, not a raw value; `fsname=` renamed to `mds_namespace=` in kernel 5.4+; v1/6789 mon addresses bypass ceph.conf msgr2-format issues. Boot persistence via `ceph-rhel-keyring.service` (Before=local-fs.target). Live verified 2026-06-18: `ok=14 changed=4 failed=0` on rhvm-01/02/03; `df` shows 6.2T at `/var/mnt/cfs`. `./init.sh` passes.
 
 ## Current Objective
 
-`ANSIBLE-001` is the next feature: scaffold the Ansible orchestration (bootc_provision / bootc_validate playbooks and roles) now that `bootc_targets` is a live, SSH-reachable inventory. `HANDOFF-001` is `passing` — VMs 310/311/312 have real IPs, the generated inventory is written, and `ansible -m ping` succeeds across all three hosts.
+`ANSIBLE-001` is the next feature: scaffold the Ansible orchestration (bootc_provision / bootc_validate playbooks and roles) now that `bootc_targets` is a live, SSH-reachable inventory with CephFS available. `CEPH-MOUNT-001` is `passing` — all three VMs have `/mnt/cfs` mounted (6.2 TiB CephFS).
 
 ## Live Actions Log (in-session approvals)
 
@@ -36,6 +37,7 @@ The harness gates live HCP/registry/Red Hat/Proxmox actions behind explicit appr
 - Live Proxmox template registration (`PVE-TEMPLATE-001`, additive): converted the `.3` image to qcow2 and registered VMID `9002` (`rhel10-bootc-20260617-3-tmpl`) on nodeF from the agent-baked image.
 - Live bootc `.4` build + push (`PUBLISH-001`): added `zsh`, `git`, `ceph-common` to the baked set, enabling `rhceph-9-tools-for-rhel-10` for ceph-common; pushed `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.4` (digest `sha256:587737ee…`). One probe register/unregister cycle to discover the ceph repo.
 - Live bootc `.4` tag OVERWRITTEN (`PUBLISH-001`): rebuilt with `zsh`+`git` only (no ceph-common, no rhceph repo), pushed new digest `sha256:b9ef024ea924b174b6b5b7f50dd032dfd629908b1c57ac62f39e3a4fb5919a43`. `images/build-vars.example.yml` default updated to match.
+- Live CephFS mount on all three bootc VMs (`CEPH-MOUNT-001`, 2026-06-18): `op run --env-file ansible/op-run.ceph.example -- ansible-playbook ansible/playbooks/bootc_ceph_mount.yaml` → `ok=14 changed=4 failed=0` on rhvm-01/02/03. `/mnt/cfs` shows 6.2 TiB CephFS. `ceph-rhel-keyring.service` enabled on all three VMs for boot persistence.
 
 ## Verification Evidence
 

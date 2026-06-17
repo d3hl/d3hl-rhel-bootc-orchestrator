@@ -44,7 +44,7 @@ resource "proxmox_virtual_environment_vm" "rhvm" {
 
   cpu {
     cores = var.rhvm_vcpu
-    type = "host"
+    type  = "host"
   }
 
   memory {
@@ -55,6 +55,12 @@ resource "proxmox_virtual_environment_vm" "rhvm" {
     datastore_id = var.rhvm_storage
     interface    = "scsi0"
     size         = var.rhvm_disk_gb
+  }
+
+  disk {
+    datastore_id = var.rhvm_storage
+    interface    = "scsi1"
+    size         = 100
   }
 
   network_device {

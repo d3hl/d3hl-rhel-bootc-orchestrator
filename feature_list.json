@@ -323,6 +323,31 @@
       "notes": "HANDOFF-001 is passing. VMs 310/311/312 are running on nodeA/nodeB/nodeD, cloned from template 9002 (qemu-guest-agent baked in). IPs: rhvm-01=10.10.30.19, rhvm-02=10.10.30.17, rhvm-03=10.10.30.18. outputs.tf, ansible.cfg, group_vars, and the generated inventory are gitignored local artifacts. Next: ANSIBLE-001 (scaffold Ansible orchestration) — bootc_targets now reachable for real playbook runs."
     },
     {
+      "id": "CEPH-MOUNT-001",
+      "priority": 13,
+      "area": "ansible",
+      "title": "Mount CephFS cFS on bootc_targets VMs",
+      "description": "Ansible role and playbook pull ceph.conf and client.rhel keyring from 1Password, add the CephX key to the Linux kernel keyring, and persistently mount the CephFS filesystem 'cFS' at /mnt/cfs on all bootc_targets VMs.",
+      "user_visible_behavior": "All three bootc VMs (rhvm-01/02/03) have /mnt/cfs mounted and accessible; ceph-rhel-keyring.service ensures the kernel keyring is populated before local-fs.target at boot.",
+      "dependencies": [
+        "HANDOFF-001",
+        "PUBLISH-001"
+      ],
+      "status": "passing",
+      "verification": [
+        "ansible-playbook --syntax-check ansible/playbooks/bootc_ceph_mount.yaml succeeds",
+        "./init.sh succeeds",
+        "LIVE: ansible-playbook ansible/playbooks/bootc_ceph_mount.yaml -> ok=14 changed=4 failed=0 on all three VMs",
+        "df -h /mnt/cfs shows 6.2T CephFS on all three VMs"
+      ],
+      "evidence": [
+        "2026-06-18 LIVE (operator-approved via session continuation): op run --env-file ansible/op-run.ceph.example -- ansible-playbook ansible/playbooks/bootc_ceph_mount.yaml -> PLAY RECAP: rhvm-01/02/03 ok=14 changed=4 failed=0. Mounts verified: 10.10.10.18:6789,...:/ 6.2T 112G 6.1T 2% /var/mnt/cfs on all three VMs. ceph-rhel-keyring.service enabled on all three VMs.",
+        "2026-06-18 Root-cause chain resolved: (1) secretfile= rejected — ceph-common not installed so mount.ceph helper absent; (2) kernel 6.12 requires binary-decoded CephX key in Linux kernel keyring before mount — key=<base64> is a keyring DESCRIPTION lookup, not a raw value; (3) fsname= renamed to mds_namespace= in kernel 5.4+; (4) v1/msgr1 mon addresses (port 6789) explicit in src, bypassing ceph.conf msgr2-format parsing issues. Fix: keyctl padd ceph <base64-desc> @s with binary payload, then key=<base64> in mount options. Boot persistence: ceph-rhel-keyring.service (Before=local-fs.target) calls /etc/ceph/load-keyring.py.",
+        "2026-06-18 ./init.sh -> static baseline complete."
+      ],
+      "notes": "VMs running bootc .3 image (no ceph-common in image). mount.ceph absent; kernel CephFS client handles mount directly. The keyring credential (op://d3HLPRV/ufj6ka4i7gmqwky7i6djulkrgq) contains client.rhel with caps mds='allow rw fsname=cFS' / mon='allow r fsname=cFS' / osd='allow rw tag cephfs data=cFS'. Verified on cluster: sudo ceph auth get client.rhel matches 1Password keyring. Boot persistence tested only via service-enable check; a reboot-and-remount test is a follow-up if needed."
+    },
+    {
       "id": "BUILD-ROLE-001",
       "priority": 12,
       "area": "image",

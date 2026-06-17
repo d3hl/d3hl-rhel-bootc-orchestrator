@@ -1,0 +1,28 @@
+---
+# Environment variable names that carry Ceph credentials from op run.
+# Values are resolved at run time; never stored in git.
+bootc_ceph_conf_env:    CEPH_CONF
+bootc_ceph_keyring_env: CEPH_KEYRING
+
+# Destination paths on the target VM.
+bootc_ceph_conf_path:    /etc/ceph/ceph.conf
+bootc_ceph_keyring_path: /etc/ceph/ceph.client.rhel.keyring
+
+# CephFS client identity and target filesystem.
+bootc_ceph_client_name: rhel
+bootc_ceph_fs_name:     cFS
+
+# Monitor addresses (v1/legacy port 6789) for the kernel CephFS client.
+# The kernel client cannot parse the msgr2 [v2:...] format in ceph.conf, so
+# addresses are passed explicitly in the mount source (host:port,host:port:/).
+bootc_ceph_mon_addrs: "10.10.10.18:6789,10.10.10.15:6789,10.10.10.17:6789,10.10.10.10:6789"
+
+# Mount point and kernel-client mount options.
+# src uses explicit v1 mon addresses; name= selects the keyring client.
+# _netdev defers the mount until networking is up (required for CephFS on boot).
+bootc_ceph_mount_point: /mnt/cfs
+# secretfile= is only handled by the mount.ceph userspace helper (not installed here).
+# The kernel CephFS client supports key=<base64> directly; the base64 value is
+# extracted from the keyring env var at run time and appended by the mount task.
+# fsname= was renamed to mds_namespace= in kernel 5.4+; use the new name for RHEL 10.
+bootc_ceph_mount_opts_base: "name={{ bootc_ceph_client_name }},mds_namespace={{ bootc_ceph_fs_name }},_netdev,noatime"

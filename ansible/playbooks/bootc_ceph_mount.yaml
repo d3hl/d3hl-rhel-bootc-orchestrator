@@ -1,0 +1,17 @@
+---
+# Mount CephFS cFS on all bootc_targets VMs.
+#
+# Requires Ceph credentials injected via op run:
+#   op read "op://d3HLPRV/d3_ops/private key" > /tmp/d3_ops_key && chmod 600 /tmp/d3_ops_key
+#   BOOTC_SSH_PRIVATE_KEY_FILE=/tmp/d3_ops_key \
+#     op run --env-file ansible/op-run.ceph.example -- \
+#     ansible-playbook ansible/playbooks/bootc_ceph_mount.yaml
+#
+# Credentials source: op://d3HLPRV/ufj6ka4i7gmqwky7i6djulkrgq ("Ceph Storage")
+# Client: rhel  |  Filesystem: cFS  |  Mount: /mnt/cfs
+
+- name: Mount CephFS cFS on bootc VMs
+  hosts: bootc_targets
+  gather_facts: false
+  roles:
+    - role: bootc_ceph_mount

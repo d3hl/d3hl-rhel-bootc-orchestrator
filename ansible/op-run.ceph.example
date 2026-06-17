@@ -1,0 +1,11 @@
+# Ceph cluster config and client keyring for cFS.
+# 1Password item "Ceph Storage" — vault d3HLPRV, UUID ufj6ka4i7gmqwky7i6djulkrgq.
+CEPH_CONF=op://d3HLPRV/ufj6ka4i7gmqwky7i6djulkrgq/ceph.conf
+CEPH_KEYRING=op://d3HLPRV/ufj6ka4i7gmqwky7i6djulkrgq/ceph.client.rhel.keyring
+# BOOTC_SSH_PRIVATE_KEY_FILE must be a file path — op run cannot resolve op:// to a path.
+# Write the key before running:
+#   op read "op://d3HLPRV/d3_ops/private key" > /tmp/d3_ops_key && chmod 600 /tmp/d3_ops_key
+# Then:
+#   BOOTC_SSH_PRIVATE_KEY_FILE=/tmp/d3_ops_key \
+#     op run --env-file ansible/op-run.ceph.example -- \
+#     ansible-playbook ansible/playbooks/bootc_ceph_mount.yaml
