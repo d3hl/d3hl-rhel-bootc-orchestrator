@@ -4,14 +4,11 @@ Last updated: 2026-06-17
 
 ## Current Task
 
-`HANDOFF-001` (active, **blocked**): wire the Ansible `bootc_targets` inventory
-from Terraform outputs. Blocked because the live VMs report no IP (no guest
-agent). This session also completed operator-approved live milestones:
-`TF-003` (live HCP apply provisioning 3 bootc VMs), `PUBLISH-001` (RHEL 10
-bootc image with `qemu-guest-agent` baked in, pushed to Quay; `bootc_publish`
-role implemented), `BUILD-ROLE-001` (build folded into the `bootc_build` role,
-live-verified via `.3`), and `PVE-TEMPLATE-001` template VMID 9002 from the `.3`
-image. The 9002 template (agent baked in) is the HANDOFF-001 unblock path.
+`HANDOFF-001` (`passing`): VMs 310/311/312 rebuilt from template 9002 (agent-baked),
+all report real IPs, `gen_terraform_inventory.py` wrote the generated inventory,
+`ansible-inventory --graph` shows `bootc_targets` populated, `ansible -m ping` → SUCCESS × 3.
+Next active feature: `ANSIBLE-001` — scaffold `bootc_provision` / `bootc_validate`
+playbooks/roles against the now-reachable `bootc_targets` inventory.
 
 ## Artifact summary
 
@@ -26,7 +23,7 @@ image. The 9002 template (agent baked in) is the HANDOFF-001 unblock path.
 | `.2` pushed digest | `sha256:57a2fa6dac8672f6ae20c18cb2edf160c048d494d5b3c695182914bd32e69aa9` |
 | Quay image (no agent) | `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.1` |
 | `.1` registry digest | `sha256:26fa41970ef519a3531ff18ac2cec6aeae0929840f159029fc356d773c65e42a` |
-| Live VMs | rhvm-01=310 (nodeA), rhvm-02=311 (nodeB), rhvm-03=312 (nodeD) |
+| Live VMs | rhvm-01=310 (nodeA, 10.10.30.19), rhvm-02=311 (nodeB, 10.10.30.17), rhvm-03=312 (nodeD, 10.10.30.18) |
 | Clone template (no agent) | VMID 9001 on nodeF (`rhel10-bootc-20260606-1-tmpl`) |
 | Clone template (agent baked) | VMID 9002 on nodeF (`rhel10-bootc-20260617-3-tmpl`, from `.3`) |
 | HCP | org `ncdv`, project `bootc`, workspace `Komodo` |
@@ -60,13 +57,13 @@ image. The 9002 template (agent baked in) is the HANDOFF-001 unblock path.
 - Passed: `BUILD-ROLE-001` live end-to-end — render → `bootc_build` built `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3`, in-image agent/cloud-init/sshd enabled + no creds/entitlement leak, `bootc_publish` pushed `sha256:5ed9875c…`
 - Passed: `PVE-TEMPLATE-001` second template — converted `.3` to qcow2 (sha256 `e62b7e93…`), staged to nodeF, registered VMID `9002` (`rhel10-bootc-20260617-3-tmpl`); `qm config 9002` shows `template: 1` with agent/q35/ovmf/virtio-scsi/cephVM/cloud-init
 - Passed: `PUBLISH-001` `.4` build+push — `zsh`/`git`/`ceph-common` baked in (ceph via `rhceph-9-tools-for-rhel-10`); `quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.4` digest `sha256:587737ee…`; in-image `ceph-common-20.1.0` (tentacle, matches cluster 20.2.1), no creds/entitlement/repo leak
-- Blocked: `terraform output ansible_inventory` → `ansible_host=null` (no agent IP); `gen_terraform_inventory.py` refuses to write
+- Passed: `HANDOFF-001` — VMs rebuilt from 9002, IPs populated, `gen_terraform_inventory.py` → `terraform.generated.yml` with 3 hosts, `ansible-inventory --graph` shows `bootc_targets` with rhvm-01/02/03, `ansible bootc_targets -m ping` → SUCCESS × 3
 
 ## Blockers / Risks
 
-- Live VMs 310/311/312 report no IP: they first-booted before networking was
-  fixed and lack `qemu-guest-agent`. Unblock by re-cloning from template VMID
-  9002 (agent baked in) — point the Terraform clone source at 9002.
+- Live VMs 310/311/312 rebuilt from template 9002 (agent-baked), SSH-reachable,
+  IPs: rhvm-01=10.10.30.19, rhvm-02=10.10.30.17, rhvm-03=10.10.30.18.
+  `HANDOFF-001` is now `passing`.
 - `terraform/*.tf`, `ansible.cfg`, and the generated inventory are gitignored
   local artifacts — not tracked; do not expect them in `git status`.
 - Live HCP/Quay/Red Hat actions this session were operator-approved in-session
@@ -87,8 +84,10 @@ image. The 9002 template (agent baked in) is the HANDOFF-001 unblock path.
 ```bash
 cd /home/d3/Github/d3hl-rhel-bootc-orchestrator
 ./init.sh
-# unblock HANDOFF-001: re-clone VMs from template 9002 (agent baked in), re-apply, then:
-python3 ansible/gen_terraform_inventory.py
+# HANDOFF-001 is passing; next feature is ANSIBLE-001
+# bootc_targets is live and SSH-reachable — implement bootc_provision / bootc_validate roles
+python3 ansible/gen_terraform_inventory.py   # regenerate inventory if IPs changed
+ansible bootc_targets -m ping                # verify reachability before role work
 ```
 
 ## Linear sync notes
@@ -107,7 +106,7 @@ Team **d3HL**. Project **Ansible Automation Orchestrator**.
 | TF-003 | — | Done (sync needed) |
 | PUBLISH-001 | — | Done (sync needed) |
 | BUILD-ROLE-001 | — | Done (sync needed) |
-| HANDOFF-001 | — | Blocked (sync needed) |
+| HANDOFF-001 | — | Done (sync needed) |
 | ANSIBLE-001 | NCD-25 | Todo |
 | CI-001 | NCD-26 | Backlog |
 | E2E-001 | NCD-27 | Todo |

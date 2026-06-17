@@ -307,7 +307,7 @@
       "dependencies": [
         "TF-003"
       ],
-      "status": "blocked",
+      "status": "passing",
       "verification": [
         "terraform output ansible_inventory renders bootc_targets hosts",
         "ansible/gen_terraform_inventory.py writes terraform.generated.yml when IPs are present",
@@ -316,9 +316,10 @@
       ],
       "evidence": [
         "2026-06-17 added ipv4 + ansible_inventory outputs to terraform/environments/dev/outputs.tf; created ansible/gen_terraform_inventory.py (refuses to write when any IP is null), ansible/inventories/group_vars/bootc_targets.yml (ansible_user d3; key via BOOTC_SSH_PRIVATE_KEY_FILE referencing op://d3HLPRV/d3_ops/private key); pointed ansible.cfg at the inventory directory. ansible-inventory --graph parses cleanly; bootc_targets currently empty.",
-        "2026-06-17 BLOCKED: terraform output ansible_inventory returns ansible_host=null for all three VMs because the guest agent reports no interfaces (VMs 310/311/312 first-booted before networking and lack qemu-guest-agent). gen_terraform_inventory.py correctly refuses to write a broken inventory."
+        "2026-06-17 BLOCKED: terraform output ansible_inventory returns ansible_host=null for all three VMs because the guest agent reports no interfaces (VMs 310/311/312 first-booted before networking and lack qemu-guest-agent). gen_terraform_inventory.py correctly refuses to write a broken inventory.",
+        "2026-06-17 UNBLOCKED (operator-approved): destroyed VMs 310/311/312 (cloned from 9001, no agent) and re-cloned from template 9002 (agent-baked from rhel10-bootc-20260617.3). terraform apply -> Apply complete! Resources: 3 added. Outputs: rhvm-01=310 (nodeA, 10.10.30.19), rhvm-02=311 (nodeB, 10.10.30.17), rhvm-03=312 (nodeD, 10.10.30.18). python3 ansible/gen_terraform_inventory.py wrote terraform.generated.yml with 3 hosts. ansible-inventory --graph shows bootc_targets: rhvm-01, rhvm-02, rhvm-03. ansible bootc_targets -m ping -> SUCCESS x3 (all pong). VMs also provisioned with 100GB scsi1 data disk mounted as /home via cloud-init disk_setup/fs_setup/mounts."
       ],
-      "notes": "Unblock by rebuilding the VMs from the PUBLISH-001 .2 image (qemu-guest-agent baked in) with networking in place, then re-running apply + ansible/gen_terraform_inventory.py. outputs.tf, ansible.cfg, group_vars, and the generated inventory are gitignored local artifacts."
+      "notes": "HANDOFF-001 is passing. VMs 310/311/312 are running on nodeA/nodeB/nodeD, cloned from template 9002 (qemu-guest-agent baked in). IPs: rhvm-01=10.10.30.19, rhvm-02=10.10.30.17, rhvm-03=10.10.30.18. outputs.tf, ansible.cfg, group_vars, and the generated inventory are gitignored local artifacts. Next: ANSIBLE-001 (scaffold Ansible orchestration) — bootc_targets now reachable for real playbook runs."
     },
     {
       "id": "BUILD-ROLE-001",
