@@ -15,16 +15,15 @@ bootc_entitled_packages:
   - cloud-init
   - zsh
   - git
-  - ceph-common
 bootc_entitled_services:
   - qemu-guest-agent.service
   - cloud-init.service
 
 # Entitlement repos to enable before installing (disabled-by-default repos).
-# ceph-common is not in BaseOS/AppStream; rhceph-9-tools-for-rhel-10 ships the
-# Ceph 20 (tentacle) client, matching the Proxmox cluster's Ceph 20.x.
-bootc_entitled_repos:
-  - rhceph-9-tools-for-rhel-10-x86_64-rpms
+# ceph-common is NOT in BaseOS/AppStream — add rhceph-9-tools-for-rhel-10-x86_64-rpms
+# here and ceph-common to bootc_entitled_packages to include the Ceph 20 (tentacle)
+# client that matches the Proxmox cluster's Ceph 20.x.
+bootc_entitled_repos: []
 
 bootc_operator_username: d3
 bootc_operator_groups:
