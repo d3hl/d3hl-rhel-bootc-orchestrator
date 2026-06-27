@@ -19,13 +19,23 @@
     quiet: true
   when: bootc_entitled_install | bool
 
+- name: Require CEPH_CONF when baking ceph.conf into image
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', bootc_build_ceph_conf_env) | length > 0
+    fail_msg: >-
+      {{ bootc_build_ceph_conf_env }} is not set.
+      Run under op run with images/op-run.build.example.
+    quiet: true
+  when: bootc_bake_ceph_conf | bool
+
 - name: Create a temporary build-secret directory
   ansible.builtin.tempfile:
     state: directory
     suffix: bootc-build
   register: bootc_build_tmp
   changed_when: false
-  when: bootc_entitled_install | bool
+  when: (bootc_entitled_install | bool) or (bootc_bake_ceph_conf | bool)
 
 - name: Stage RHSM build secrets
   # Files (--secret src=) instead of env (--secret env=) so the secret never
@@ -43,6 +53,13 @@
   no_log: true
   when: bootc_entitled_install | bool
 
+- name: Stage ceph.conf build secret
+  ansible.builtin.copy:
+    dest: "{{ bootc_build_tmp.path }}/ceph_conf"
+    content: "{{ lookup('ansible.builtin.env', bootc_build_ceph_conf_env) }}"
+    mode: "0644"
+  when: bootc_bake_ceph_conf | bool
+
 - name: Build the bootc image
   ansible.builtin.command:
     argv: "{{ bootc_build_base_argv + bootc_build_secret_argv + bootc_build_tail_argv }}"
@@ -57,12 +74,14 @@
       - "BOOTC_BASE_IMAGE={{ bootc_base_image }}"
       - "--build-arg"
       - "IMAGE_TAG={{ bootc_build_tag }}"
-    # Lazily evaluated: bootc_build_tmp.path is only referenced in the entitled
-    # branch, so it is never read when the tempdir task was skipped.
+    # Lazily evaluated: bootc_build_tmp.path is only referenced when a tempdir
+    # was created (entitled install or ceph_conf bake).
     bootc_build_secret_argv: >-
-      {{ ['--secret', 'id=rhsm_user,src=' ~ bootc_build_tmp.path ~ '/rhsm_user',
-          '--secret', 'id=rhsm_pass,src=' ~ bootc_build_tmp.path ~ '/rhsm_pass']
-         if (bootc_entitled_install | bool) else [] }}
+      {{ (['--secret', 'id=rhsm_user,src=' ~ bootc_build_tmp.path ~ '/rhsm_user',
+           '--secret', 'id=rhsm_pass,src=' ~ bootc_build_tmp.path ~ '/rhsm_pass']
+          if (bootc_entitled_install | bool) else [])
+         + (['--secret', 'id=ceph_conf,src=' ~ bootc_build_tmp.path ~ '/ceph_conf']
+            if (bootc_bake_ceph_conf | bool) else []) }}
     bootc_build_tail_argv:
       - "-t"
       - "{{ bootc_build_target_image }}"
@@ -83,7 +102,7 @@
     path: "{{ bootc_build_tmp.path }}"
     state: absent
   changed_when: false
-  when: bootc_entitled_install | bool
+  when: (bootc_entitled_install | bool) or (bootc_bake_ceph_conf | bool)
 
 - name: Show the built image
   ansible.builtin.debug:

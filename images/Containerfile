@@ -34,6 +34,11 @@ RUN --mount=type=secret,id=rhsm_user --mount=type=secret,id=rhsm_pass \
 # work without a manual modprobe call (must precede keyctl + mount in CEPH-MOUNT-001).
 RUN echo "ceph" > /etc/modules-load.d/ceph.conf
 
+# Bake cluster config into the image (not a secret — contains only monitor
+# addresses and FSID). Keyring stays in 1Password and is injected at runtime.
+RUN --mount=type=secret,id=ceph_conf \
+    install -m 644 -D /run/secrets/ceph_conf /etc/ceph/ceph.conf
+
 RUN systemctl enable \
         qemu-guest-agent.service \
         cloud-init.service \

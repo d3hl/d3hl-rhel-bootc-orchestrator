@@ -1,6 +1,6 @@
-# Ceph cluster config and client keyring for cFS.
+# Ceph client keyring for cFS.
 # 1Password item "Ceph Storage" — vault d3HLPRV, UUID ufj6ka4i7gmqwky7i6djulkrgq.
-CEPH_CONF=op://d3HLPRV/ufj6ka4i7gmqwky7i6djulkrgq/ceph.conf
+# ceph.conf is baked into the bootc image (IMAGE-001); only the keyring is needed here.
 CEPH_KEYRING=op://d3HLPRV/ufj6ka4i7gmqwky7i6djulkrgq/ceph.client.rhel.keyring
 # BOOTC_SSH_PRIVATE_KEY_FILE must be a file path — op run cannot resolve op:// to a path.
 # Write the key before running:

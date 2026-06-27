@@ -1,4 +1,7 @@
 BOOTC_OPERATOR_SSH_PUBLIC_KEY=op://d3HLPRV/d3_ops/public key
+# Ceph cluster config baked into the image at build time (monitor addresses + FSID).
+# Same 1Password item as op-run.ceph.example — not a secret, no keyring here.
+CEPH_CONF=op://d3HLPRV/ufj6ka4i7gmqwky7i6djulkrgq/ceph.conf
 # RHSM build secrets for the entitled in-build install (qemu-guest-agent +
 # cloud-init). The Red Hat Console item title contains a ':', so it must be
 # referenced by UUID, not by name. Replace <rhsm-item-uuid> with the real

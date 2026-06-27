@@ -1,11 +1,11 @@
 ---
-# Environment variable names that carry Ceph credentials from op run.
-# Values are resolved at run time; never stored in git.
-bootc_ceph_conf_env:    CEPH_CONF
+# Environment variable name that carries the Ceph keyring from op run.
+# ceph.conf is baked into the bootc image at build time (IMAGE-001) — not needed here.
+# Value is resolved at run time; never stored in git.
 bootc_ceph_keyring_env: CEPH_KEYRING
 
 # Destination paths on the target VM.
-bootc_ceph_conf_path:    /etc/ceph/ceph.conf
+# ceph.conf is already present (baked into image); only the keyring is written here.
 bootc_ceph_keyring_path: /etc/ceph/ceph.client.rhel.keyring
 
 # CephFS client identity and target filesystem.

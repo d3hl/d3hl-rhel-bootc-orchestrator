@@ -1,29 +1,17 @@
 ---
-- name: Require Ceph credentials in the environment
+- name: Require Ceph keyring in the environment
   ansible.builtin.assert:
     that:
-      - lookup('ansible.builtin.env', bootc_ceph_conf_env) | length > 0
       - lookup('ansible.builtin.env', bootc_ceph_keyring_env) | length > 0
     fail_msg: >-
-      {{ bootc_ceph_conf_env }} / {{ bootc_ceph_keyring_env }} are not set.
+      {{ bootc_ceph_keyring_env }} is not set.
+      ceph.conf is baked into the bootc image — only the keyring is needed at runtime.
       Run under op run, e.g.:
       op read "op://d3HLPRV/d3_ops/private key" > /tmp/d3_ops_key && chmod 600 /tmp/d3_ops_key
       BOOTC_SSH_PRIVATE_KEY_FILE=/tmp/d3_ops_key
       op run --env-file ansible/op-run.ceph.example --
       ansible-playbook ansible/playbooks/bootc_ceph_mount.yaml
     quiet: true
-
-- name: Ensure /etc/ceph directory exists
-  ansible.builtin.file:
-    path: /etc/ceph
-    state: directory
-    mode: "0755"
-
-- name: Write ceph.conf
-  ansible.builtin.copy:
-    content: "{{ lookup('ansible.builtin.env', bootc_ceph_conf_env) }}\n"
-    dest: "{{ bootc_ceph_conf_path }}"
-    mode: "0644"
 
 - name: Write ceph client keyring
   ansible.builtin.copy:

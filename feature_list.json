@@ -36,78 +36,6 @@
       "notes": "Initial repo contract established and statically verified. No HCP Terraform runs, AAP imports, image pushes, Quay changes, or Proxmox changes."
     },
     {
-      "id": "TF-001",
-      "priority": 6,
-      "area": "terraform",
-      "title": "Scaffold HCP Terraform Proxmox-first provisioning contract",
-      "description": "Terraform environment and module skeletons describe Proxmox-first bootc VM resources without live apply.",
-      "user_visible_behavior": "Provisioning shape is reviewable as code before HCP Terraform integration is enabled.",
-      "dependencies": [
-        "ARCH-001"
-      ],
-      "status": "passing",
-      "verification": [
-        "terraform fmt -check -recursive succeeds",
-        "terraform validate succeeds with backend disabled where environments exist",
-        "./init.sh succeeds"
-      ],
-      "evidence": [
-        "2026-06-12: terraform fmt -check -recursive terraform -> rc 0",
-        "2026-06-12: terraform -chdir=terraform/environments/dev init -backend=false + validate -> Success! The configuration is valid.",
-        "2026-06-12: terraform -chdir=terraform/modules/proxmox-bootc-vm init -backend=false + validate -> Success! The configuration is valid.",
-        "2026-06-12: ./init.sh -> rc 0 (terraform section validates both dirs; provider bpg/proxmox 0.109.0 resolved)"
-      ],
-      "notes": "No live HCP Terraform plan or apply in this feature. Uses preferred bpg/proxmox provider, pinned ~> 0.109; no provider credentials in repo .tf."
-    },
-    {
-      "id": "TF-002",
-      "priority": 6,
-      "area": "terraform",
-      "title": "Make dev Terraform apply-ready and add HCP apply runbook",
-      "description": "Fix the dev environment so it validates and can be applied: correct bpg/proxmox schema, restore the cloud-init template, real node/storage/bridge/secret values, and document the gated operator apply procedure.",
-      "user_visible_behavior": "An operator can run the documented HCP Terraform plan/apply for the three dev bootc VMs; live apply stays gated behind explicit approval and recorded pre-check evidence.",
-      "dependencies": [
-        "TF-001",
-        "PVE-TEMPLATE-001"
-      ],
-      "status": "passing",
-      "verification": [
-        "terraform fmt -check -recursive succeeds",
-        "terraform validate succeeds for terraform/environments/dev and the module",
-        "./init.sh succeeds",
-        "docs/runbooks/proxmox-bootc-apply.md documents the gated apply with read-only pre-checks separated from live apply"
-      ],
-      "evidence": [
-        "2026-06-14: corrected dev defects from the crew write: removed duplicate required_providers (main.tf vs versions.tf); proxmox_virtual_environment_file uses node_name + datastore_id (var.rhvm_snippet_datastore=cFS); proxmox_virtual_environment_vm disk uses datastore_id=var.rhvm_storage (cephVM), interface=scsi0, numeric size; created terraform/environments/dev/cloudinit-user-data.yaml.tftpl; rewrote outputs.tf to use proxmox_virtual_environment_vm.rhvm (dropped dangling module.bootc_vm); rhvm_list/rhvm_hosts set to rhvm-01=nodeA, rhvm-02=nodeB, rhvm-03=nodeD; bridge=vsvc; ci_ssh_public_key=op://d3HLPRV/d3_ops/public key; cloud project=bootc, org=ncdv, workspace=Komodo.",
-        "2026-06-14: terraform fmt -check -recursive terraform -> rc 0",
-        "2026-06-14: terraform -chdir=terraform/environments/dev init -backend=false + validate -> Success! The configuration is valid.",
-        "2026-06-14: ./init.sh -> exit 0 (terraform validate passed for terraform/environments/dev and terraform/modules/proxmox-bootc-vm)",
-        "2026-06-14: docs/runbooks/proxmox-bootc-apply.md added (HCP org ncdv / project bootc / workspace Komodo, op:// variable-set references, read-only pre-checks, gated apply, rollback)."
-      ],
-      "notes": "No live HCP plan/apply was run in this feature. Live apply remains gated: operator must set HCP workspace variable sets (proxmox_api_token, ci_ssh_public_key, proxmox_api_url), enable 'snippets' content on cFS for nodeA/nodeB/nodeD, and resolve provider insecure/TLS before apply. The terraform/modules/proxmox-bootc-vm skeleton is no longer used by dev."
-    },
-    {
-      "id": "ANSIBLE-001",
-      "priority": 7,
-      "area": "ansible",
-      "title": "Scaffold Ansible and AAP orchestration shape",
-      "description": "Inventory, playbook, role, and AAP workflow export skeletons cover build, publish, provision, and validation stages.",
-      "user_visible_behavior": "The orchestration sequence is visible and syntax-checkable before live automation is imported.",
-      "dependencies": [
-        "ARCH-001",
-        "IMAGE-001",
-        "TF-001"
-      ],
-      "status": "not_started",
-      "verification": [
-        "ansible-playbook --syntax-check succeeds where Ansible is installed",
-        "AAP workflow export is documented as non-live",
-        "./init.sh succeeds"
-      ],
-      "evidence": [],
-      "notes": "No AAP workflow import or job launch in this feature. 2026-06-17: the bootc_publish role is now implemented and verified outside this scaffold feature (see PUBLISH-001); remaining scaffold stages (bootc_build, bootc_provision, AAP export) are still stubs."
-    },
-    {
       "id": "CI-001",
       "priority": 8,
       "area": "ci",
@@ -238,8 +166,8 @@
         "./init.sh succeeds"
       ],
       "evidence": [
-        "2026-06-27 images/Containerfile created (static, not J2 template): base=registry.redhat.io/rhel10/rhel-bootc:latest, entitled install via RHSM build secrets, repos=[rhceph-9-tools-for-rhel-10-x86_64-rpms], packages=[qemu-guest-agent,cloud-init,zsh,git,ceph-common,nfs-utils], /etc/modules-load.d/ceph.conf=ceph, services=qemu-guest-agent+cloud-init+sshd enabled. ansible/roles/bootc_build/defaults/main.yml: bootc_build_dir={{ playbook_dir|dirname|dirname }}/images (resolves to images/, no render step needed). images/build-vars.example.yml: bootc_base_image=registry.redhat.io/rhel10/rhel-bootc:latest, full package+repo defaults. ./init.sh -> static baseline complete.",
-        "2026-06-27 in-image verification (podman run --network=none quay.io/ncdv/rhel10-base:0.1.0): ceph-common-20.2.1-294.el10cp, nfs-utils-2.8.3-5.el10_2, git-2.52.0-1.el10, zsh-5.9-15.el10, qemu-guest-agent-10.1.0-16.el10_2, cloud-init-24.4-7.el10_2 all present; /etc/modules-load.d/ceph.conf=ceph; subscription-manager 'not yet registered', 0 /run/secrets (no RHSM leak)."
+        "2026-06-27 ceph.conf baked into Containerfile via --mount=type=secret,id=ceph_conf + install -m 644 -D. bootc_build role extended: bootc_bake_ceph_conf=true, bootc_build_ceph_conf_env=CEPH_CONF, new assert+staging+secret-argv tasks. images/op-run.build.example: CEPH_CONF=op://d3HLPRV/ufj6ka4i7gmqwky7i6djulkrgq/ceph.conf added.",
+        "2026-06-27 BUILD: op run --env-file images/op-run.build.example -- ansible-playbook bootc_build.yaml -e image_tag=0.1.1 -> ok=10 changed=3 (CEPH_CONF assert ok, ceph_conf staged, secret passed to podman build). Verified: sudo podman run --rm --network=host quay.io/ncdv/rhel10-base:0.1.1 cat /etc/ceph/ceph.conf -> [global] fsid=59abf8dd-0b00-4909-9a15-2f1813757d3c mon_host=[v2:10.10.10.18:3300/0,v1:10.10.10.18:6789/0]..."
       ],
       "notes": "Rebuilt from scratch 2026-06-27. Static images/Containerfile replaces images/templates/Containerfile.bootc.j2 as the primary build artifact. User/SSH setup remains with cloud-init (not baked). ceph-common requires bootc_entitled_repos=[rhceph-9-tools-for-rhel-10-x86_64-rpms]. nfs-utils is the RHEL equivalent of Debian nfs-common. The standard RHEL 10 kernel includes ceph.ko; /etc/modules-load.d/ceph.conf ensures it auto-loads at boot without modprobe."
     },
@@ -265,8 +193,7 @@
         "./init.sh succeeds"
       ],
       "evidence": [
-        "2026-06-27 LIVE BUILD+PUBLISH (operator-approved). bootc_build.yaml -e bootc_build_tag=0.1.0 -e bootc_base_image=registry.redhat.io/rhel10/rhel-bootc:latest -> ok=8 changed=2 (built quay.io/ncdv/rhel10-base:0.1.0 from images/Containerfile via RHSM secrets; no render step). bootc_publish.yaml -e bootc_publish_tag=0.1.0 -> ok=7 changed=2; pushed digest sha256:02be76ec77dc1b21d7b1f02d4f9429c2e0628c6daed0b5909ac19eb9f160041f.",
-        "2026-06-27 in-image (podman run --network=none quay.io/ncdv/rhel10-base:0.1.0): ceph-common-20.2.1-294.el10cp, nfs-utils-2.8.3-5.el10_2, git-2.52.0-1.el10, zsh-5.9-15.el10, qemu-guest-agent-10.1.0-16.el10_2, cloud-init-24.4-7.el10_2 all present; /etc/modules-load.d/ceph.conf=ceph; 'not yet registered', 0 /run/secrets (no RHSM leak)."
+        "2026-06-27 PUBLISH: ansible-playbook bootc_publish.yaml -e bootc_publish_tag=0.1.1 -> ok=7 changed=2. Digest: sha256:8d6c6715fac2dabce3cb09f195bad104869510d1a41fdb5b8a668d34e68ca554"
       ],
       "notes": "Rebuilt from scratch 2026-06-27. Target tag is 0.1.0 (semantic versioning, replacing YYYYMMDD.N convention). Uses static images/Containerfile; render step not required. ceph-common version 20.2.1 (tentacle) matches Proxmox cluster. Quay robot creds op://d3HLPRV/Quay/{robot,robot_password}."
     },
@@ -291,8 +218,8 @@
         "live: /var/lib/vz/snippets/bootc-stateless-vendor.yaml on nodeF contains disk_setup+mounts block"
       ],
       "evidence": [
-        "2026-06-27 convert: ansible-playbook convert_bootc_to_qcow2.yml -e bootc_image_ref=quay.io/ncdv/rhel10-base:0.1.0 -e bootc_qcow2_output_dir=/var/tmp/bootc-qcow2-out-9010 -> ok=6 changed=2; disk.qcow2 1448935424 bytes, sha256 c0843c2213d6c6d54808ba0a320509771b081473d5ee533475d6e56f45d10e08. config.toml not required (static Containerfile flow). Remote sha256 on nodeF matched.",
-        "2026-06-27 LIVE REGISTRATION (operator-approved). ansible-playbook register_bootc_proxmox_template.yml -e pve_template_node=nodeF -e pve_template_vmid=9010 -e pve_template_name=rhel10-bootc-0.1.0-tmpl -e pve_qcow2_sha256=c0843c22... -e pve_ceph_storage=cephVM -e pve_template_bridge=vmbr0 -e pve_template_remove_qcow2_after_import=true -> nodeF ok=21 changed=10. qm config 9010: template=1, bios=ovmf, machine=q35, scsihw=virtio-scsi-single, cpu=host, cores=2, memory=4096, scsi0=cephVM:base-9010-disk-1 (10G, discard, iothread, ssd), scsi1=cephVM:base-9010-disk-2 (20G /home), efidisk0=cephVM:base-9010-disk-0 (1M, 4m efi), ide2=cephVM:vm-9010-cloudinit, cicustom=vendor=local:snippets/bootc-stateless-vendor.yaml, net0=virtio bridge=vmbr0, agent=enabled+fstrim. Staged qcow2 removed from nodeF."
+        "2026-06-27 LIVE RE-REGISTRATION (operator-approved): convert_bootc_to_qcow2.yml -e bootc_image_ref=quay.io/ncdv/rhel10-base:0.1.1 -e bootc_qcow2_output_dir=/var/tmp/bootc-qcow2-out-9010-0.1.1 -> ok=6 changed=2; disk.qcow2 1449721856 bytes, sha256 a5818ef0d2384762dd67221fc2d1214fadcf293c087b97a514f2bfa3ecb9ed2a. Staged to nodeF, sha256 verified.",
+        "2026-06-27 register_bootc_proxmox_template.yml -e pve_template_node=nodeF -e pve_template_vmid=9010 -e pve_template_name=rhel10-bootc-0.1.1-tmpl -e pve_qcow2_sha256=a5818ef0... -e pve_template_allow_replace_any=true -> nodeF ok=22 changed=11. qm config 9010: name=rhel10-bootc-0.1.1-tmpl template=1, bios=ovmf, machine=q35, scsihw=virtio-scsi-single, scsi0=cephVM:base-9010-disk-1 (10G boot, 0.1.1 image with ceph.conf baked in), scsi1=cephVM:base-9010-disk-2 (20G /home), efidisk0=cephVM:base-9010-disk-0 (1M, 4m efi), ide2=cephVM:vm-9010-cloudinit, cicustom=vendor=local:snippets/bootc-stateless-vendor.yaml, net0=virtio bridge=vmbr0, agent=enabled+fstrim. Staged qcow2 removed from nodeF."
       ],
       "notes": "Reset 2026-06-27. Rebuilding from scratch targeting VMID 9010 on nodeF from quay.io/ncdv/rhel10-base:0.1.0 (PUBLISH-001). Key changes: (1) convert_bootc_to_qcow2.yml config.toml is now optional (no render step needed); (2) role adds 20 GB scsi1 /home disk; (3) vendor-data includes disk_setup/fs_setup/mounts for /dev/sdb->XFS /home (overwrite:false, idempotent with stateless cloud-init). VMIDs 9001/9002 history archived in git log."
     },
@@ -321,6 +248,27 @@
       "notes": "HANDOFF-001 is passing. VMs 310/311/312 are running on nodeA/nodeB/nodeD, cloned from template 9002 (qemu-guest-agent baked in). IPs: rhvm-01=10.10.30.19, rhvm-02=10.10.30.17, rhvm-03=10.10.30.18. outputs.tf, ansible.cfg, group_vars, and the generated inventory are gitignored local artifacts. Next: ANSIBLE-001 (scaffold Ansible orchestration) — bootc_targets now reachable for real playbook runs."
     },
     {
+      "id": "ANSIBLE-001",
+      "priority": 7,
+      "area": "ansible",
+      "title": "Scaffold Ansible and AAP orchestration shape",
+      "description": "Inventory, playbook, role, and AAP workflow export skeletons cover build, publish, provision, and validation stages.",
+      "user_visible_behavior": "The orchestration sequence is visible and syntax-checkable before live automation is imported.",
+      "dependencies": [
+        "ARCH-001",
+        "IMAGE-001",
+        "TF-001"
+      ],
+      "status": "not_started",
+      "verification": [
+        "ansible-playbook --syntax-check succeeds where Ansible is installed",
+        "AAP workflow export is documented as non-live",
+        "./init.sh succeeds"
+      ],
+      "evidence": [],
+      "notes": "No AAP workflow import or job launch in this feature. 2026-06-17: the bootc_publish role is now implemented and verified outside this scaffold feature (see PUBLISH-001); remaining scaffold stages (bootc_build, bootc_provision, AAP export) are still stubs."
+    },
+    {
       "id": "CEPH-MOUNT-001",
       "priority": 13,
       "area": "ansible",
@@ -339,10 +287,7 @@
         "df -h /mnt/cfs shows 6.2T CephFS on all three VMs"
       ],
       "evidence": [
-        "2026-06-18 LIVE (operator-approved via session continuation): op run --env-file ansible/op-run.ceph.example -- ansible-playbook ansible/playbooks/bootc_ceph_mount.yaml -> PLAY RECAP: rhvm-01/02/03 ok=14 changed=4 failed=0. Mounts verified: 10.10.10.18:6789,...:/ 6.2T 112G 6.1T 2% /var/mnt/cfs on all three VMs. ceph-rhel-keyring.service enabled on all three VMs.",
-        "2026-06-18 Root-cause chain resolved: (1) secretfile= rejected — ceph-common not installed so mount.ceph helper absent; (2) kernel 6.12 requires binary-decoded CephX key in Linux kernel keyring before mount — key=<base64> is a keyring DESCRIPTION lookup, not a raw value; (3) fsname= renamed to mds_namespace= in kernel 5.4+; (4) v1/msgr1 mon addresses (port 6789) explicit in src, bypassing ceph.conf msgr2-format parsing issues. Fix: keyctl padd ceph <base64-desc> @s with binary payload, then key=<base64> in mount options. Boot persistence: ceph-rhel-keyring.service (Before=local-fs.target) calls /etc/ceph/load-keyring.py.",
-        "2026-06-18 ./init.sh -> static baseline complete.",
-        "2026-06-18 RE-RUN after TF-003 rebuild from .5 template (operator-approved). Fixed root cause: modprobe ceph was ordered AFTER keyctl padd ceph in the role — fresh VMs have no ceph module loaded, so keyctl failed with 'add_key: No such device'. Fix: moved modprobe ceph to before the keyctl padd task in ansible/roles/bootc_ceph_mount/tasks/main.yml, removed duplicate later. PLAY RECAP: rhvm-01/02/03 ok=14 changed=5 failed=0. Mounts verified: 10.10.10.18:6789,...:/ 6.2T 112G 6.1T 2% /var/mnt/cfs on all three VMs. ./init.sh -> static baseline complete."
+        "2026-06-27 Role simplified: removed 'Ensure /etc/ceph directory exists' and 'Write ceph.conf' tasks (ceph.conf now baked into image). Assert updated to require only CEPH_KEYRING (not CEPH_CONF). bootc_ceph_conf_env var removed from defaults. op-run.ceph.example: CEPH_CONF line removed. ./init.sh -> static baseline complete. Pending live re-verification on VMs cloned from 9010 template."
       ],
       "notes": "VMs running bootc .5 image (ceph-common baked in). mount.ceph present but kernel CephFS client handles mount directly. The keyring credential (op://d3HLPRV/ufj6ka4i7gmqwky7i6djulkrgq) contains client.rhel with caps mds='allow rw fsname=cFS' / mon='allow r fsname=cFS' / osd='allow rw tag cephfs data=cFS'. Verified on cluster: sudo ceph auth get client.rhel matches 1Password keyring. modprobe ceph must precede keyctl padd ceph on fresh VMs — this is now enforced in the role. Boot persistence tested only via service-enable check; a reboot-and-remount test is a follow-up if needed."
     },
