@@ -26,3 +26,28 @@ fs_setup:
 
 mounts:
   - [LABEL=home, /home, xfs, defaults, 0, 2]
+
+# Stateless cloud-init: install a systemd shutdown service that calls
+# 'cloud-init clean --logs' before each power-off so the next boot is treated
+# as a fresh instance. This ensures Proxmox-delivered cloud-init config
+# (user keys, hostname, network) is always re-applied rather than baked in
+# from first boot. All modules use overwrite:false / idempotent guards above.
+write_files:
+  - path: /etc/systemd/system/cloud-init-stateless.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Reset cloud-init state for stateless re-run on next boot
+      DefaultDependencies=no
+      Before=shutdown.target reboot.target halt.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/cloud-init clean --logs
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=shutdown.target reboot.target halt.target
+
+runcmd:
+  - systemctl enable cloud-init-stateless.service

@@ -6,17 +6,17 @@
       "bootc_targets": {
         "hosts": {
           "rhvm-01": {
-            "ansible_host": "10.10.30.19",
+            "ansible_host": "10.10.30.30",
             "proxmox_node": "nodeA",
             "proxmox_vmid": 310
           },
           "rhvm-02": {
-            "ansible_host": "10.10.30.17",
+            "ansible_host": "10.10.30.29",
             "proxmox_node": "nodeB",
             "proxmox_vmid": 311
           },
           "rhvm-03": {
-            "ansible_host": "10.10.30.18",
+            "ansible_host": "10.10.30.28",
             "proxmox_node": "nodeD",
             "proxmox_vmid": 312
           }

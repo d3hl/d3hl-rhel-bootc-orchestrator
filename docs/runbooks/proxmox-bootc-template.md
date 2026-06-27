@@ -88,6 +88,29 @@ Expected config signals:
 - `net0: virtio=...,bridge=vmbr0`
 - `ide2: cephVM:cloudinit`
 - `boot: order=scsi0`
+- `cicustom: vendor=local:snippets/bootc-stateless-vendor.yaml`
+
+## Stateless cloud-init
+
+The role uploads `/var/lib/vz/snippets/bootc-stateless-vendor.yaml` to the
+template node and sets `cicustom vendor=...` on the template VM before
+converting it. Every VM cloned from the template inherits this `cicustom`
+vendor entry.
+
+The vendor-data installs `cloud-init-stateless.service` via `write_files` +
+`runcmd` on first boot. The service runs `cloud-init clean --logs` at
+shutdown/reboot (`Before=shutdown.target`), so the next boot is treated as a
+fresh cloud-init instance — cloud-init re-reads the Proxmox-delivered CDROM
+and re-applies user, SSH key, disk, and mount config.
+
+All modules in the user-data use `overwrite: false` guards so re-runs are
+idempotent (no disk reformatting, no duplicate fstab entries, no user
+conflicts).
+
+For Terraform-provisioned VMs (`cloudinit-user-data.yaml.tftpl`), the same
+`write_files` / `runcmd` block is embedded in the user-data snippet directly,
+since Terraform's `initialization { user_data_file_id }` overrides the
+template's `cicustom user` but the vendor entry may vary by provider version.
 
 For a boot validation, clone the template, supply cloud-init hostname, IP
 settings, and SSH keys, then confirm:

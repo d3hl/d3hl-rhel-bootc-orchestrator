@@ -18,7 +18,7 @@ Ansible's job (see `ansible/playbooks/bootc_provision.yaml`).
 
 ## Assumptions
 
-- Template VMID `9001` (`rhel10-bootc-20260606-1-tmpl`) exists on `nodeF` with its
+- Template VMID `9002` (`rhel10-bootc-20260617-5-tmpl`) exists on `nodeF` with its
   disk on the shared `cephVM` datastore, so a full clone can land on other nodes.
 - Target nodes `nodeA`, `nodeB`, `nodeD` are online and share `cephVM`.
 - The snippets datastore `cFS` has the `snippets` content type enabled and is

@@ -189,6 +189,48 @@
       - order=scsi0
   changed_when: true
 
+- name: Upload cloud-init stateless vendor-data snippet to node
+  ansible.builtin.copy:
+    dest: "/var/lib/vz/snippets/{{ pve_stateless_snippet_name }}"
+    mode: "0644"
+    content: |
+      #cloud-config
+      # Installed by the bootc_proxmox_template role.
+      # Creates a systemd shutdown service that runs 'cloud-init clean --logs'
+      # before each power-off so the next boot is treated as a fresh instance,
+      # ensuring cloud-init always re-applies the Proxmox-delivered config.
+      write_files:
+        - path: /etc/systemd/system/cloud-init-stateless.service
+          permissions: '0644'
+          content: |
+            [Unit]
+            Description=Reset cloud-init state for stateless re-run on next boot
+            DefaultDependencies=no
+            Before=shutdown.target reboot.target halt.target
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/bin/cloud-init clean --logs
+            RemainAfterExit=yes
+
+            [Install]
+            WantedBy=shutdown.target reboot.target halt.target
+      runcmd:
+        - systemctl enable cloud-init-stateless.service
+  when: pve_template_stateless | bool
+  changed_when: true
+
+- name: Configure template cicustom vendor-data for stateless cloud-init
+  ansible.builtin.command:
+    argv:
+      - qm
+      - set
+      - "{{ pve_template_vmid }}"
+      - --cicustom
+      - "vendor={{ pve_snippet_storage_id }}:snippets/{{ pve_stateless_snippet_name }}"
+  when: pve_template_stateless | bool
+  changed_when: true
+
 - name: Convert VM to template
   ansible.builtin.command:
     argv:

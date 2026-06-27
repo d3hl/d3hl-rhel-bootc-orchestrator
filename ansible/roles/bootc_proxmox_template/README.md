@@ -20,6 +20,12 @@ Registers the staged RHEL bootc qcow2 as a Ceph-backed Proxmox VM template.
 - `pve_template_destroy_existing`: `true`
 - `pve_template_allow_replace_any`: `false`
 - `pve_template_remove_qcow2_after_import`: `false`
+- `pve_template_stateless`: `true` — upload vendor-data snippet and configure
+  `cicustom vendor=...` on the template so every clone's cloud-init re-runs on
+  every boot (via a systemd shutdown service that calls `cloud-init clean`)
+- `pve_snippet_storage_id`: `local` — Proxmox storage that owns `/var/lib/vz/snippets/`
+- `pve_stateless_snippet_name`: `bootc-stateless-vendor.yaml` — filename uploaded
+  to the node's snippet store
 
 The role refuses to replace an existing VMID unless the existing VM name matches
 `pve_template_name`, or `pve_template_allow_replace_any=true` is set after an

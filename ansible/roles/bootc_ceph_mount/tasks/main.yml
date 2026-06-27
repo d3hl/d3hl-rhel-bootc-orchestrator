@@ -40,6 +40,13 @@
           | first) }}
   no_log: true
 
+# ceph kernel module must be loaded before keyctl can register the 'ceph' key
+# type. On fresh VMs the module is not pre-loaded, so modprobe here, not later.
+- name: Load ceph kernel module (required before keyctl padd ceph)
+  ansible.builtin.command:
+    cmd: modprobe ceph
+  changed_when: false
+
 # In Linux kernel 6.x, key=<base64> in CephFS mount options is used as a
 # *description* to look up a key in the Linux kernel keyring (not the raw value).
 # The keyring entry must hold the binary-decoded CephX key struct (28 bytes).
@@ -103,6 +110,7 @@
       [Service]
       Type=oneshot
       RemainAfterExit=yes
+      ExecStartPre=/sbin/modprobe ceph
       ExecStart=/usr/bin/python3 /etc/ceph/load-keyring.py
 
       [Install]
@@ -119,11 +127,6 @@
     path: "{{ bootc_ceph_mount_point }}"
     state: directory
     mode: "0755"
-
-- name: Load ceph kernel module
-  ansible.builtin.command:
-    cmd: modprobe ceph
-  changed_when: false
 
 - name: Mount {{ bootc_ceph_fs_name }} at {{ bootc_ceph_mount_point }}
   ansible.posix.mount:
