@@ -517,10 +517,7 @@
         "2026-06-17 LIVE BUILD+PUSH through the new role (operator-approved). op run --env-file images/op-run.build.example -- ansible-playbook render_bootc_image_context.yml then bootc_build.yaml -e bootc_build_tag=rhel10-bootc-20260617.3 -e bootc_base_image=registry.redhat.io/rhel10/rhel-bootc:latest: bootc_build built quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3 (RHSM passed as --secret src tempfiles, removed after). In-image (podman run --network=none): qemu-guest-agent.service/cloud-init.service/sshd.service all 'enabled'; qemu-guest-agent-10.1.0 + cloud-init-24.4 installed; subscription-manager 'not yet registered', 0 entitlement certs, 0 consumer certs, 0 /run/secrets (no leak). bootc_publish then pushed it: pushed digest sha256:5ed9875c30388e30d4d88c38e6c488e022c7b8d02c8515b9599f6ce8715071b9. ./init.sh -> static baseline complete."
       ],
       "notes": "Done and live-verified through the role: render -> bootc_build -> bootc_publish produced quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3. The local script /tmp/build_and_push_rhel10.sh is retired. Reuses the temp-secret/no_log/cleanup idiom from bootc_publish and the become+argv + require-rendered-context idiom from convert_bootc_to_qcow2.yml. bootc_build does not render and does not push, matching the single-responsibility split of the other stages. RHSM build secret reference op://d3HL/<Red Hat Console: ndcv-org UUID>/{username,password}; Quay robot creds op://d3HLPRV/Quay/{robot,robot_password}. Folding the bootc_build_dir base default toward registry.redhat.io (build-vars still defaults to satellite) is a possible follow-up."
-    }
-  ]
-}
-
+    },
     {
       "id": "REGISTRY-001",
       "priority": 3,
