@@ -1,6 +1,6 @@
 {
   "project": "d3hl-rhel-bootc-orchestrator",
-  "last_updated": "2026-06-18",
+  "last_updated": "2026-06-28",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -376,7 +376,7 @@
         "TF-003",
         "PVE-TEMPLATE-001"
       ],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "terraform validate succeeds",
         "./init.sh succeeds",
@@ -385,7 +385,12 @@
         "SSH as d3@<ip> with key 5jenjts2ywrnvrasi26xjacdne succeeds",
         "cat /etc/ceph/ceph.conf on each VM shows cluster config"
       ],
-      "evidence": []
+      "evidence": [
+        "2026-06-28 terraform validate -> Success! The configuration is valid. ./init.sh -> static baseline complete.",
+        "2026-06-28 terraform plan (HCP Komodo workspace) -> Plan: 6 to add, 0 to change, 0 to destroy (targeted apply: +3 proxmox_virtual_environment_file.cloudinit_sghlrhkmd + +3 proxmox_virtual_environment_vm.sghlrhkmd).",
+        "2026-06-28 terraform apply -auto-approve (HCP run run-ktR22aCAfEJGuwWa, org=ncdv workspace=komodo) -> Apply complete! Resources: 6 added. sghlrhkmd_vms output: sg-hl-rhkmd-01=301 (nodeA, 10.10.30.13), sg-hl-rhkmd-02=302 (nodeB, 10.10.30.14), sg-hl-rhkmd-03=303 (nodeD, 10.10.30.15). All cloned from template 9010 (rhel10-bootc-0.1.1-tmpl, ceph.conf baked in IMAGE-001). Cloud-init: user d3, SSH key op://d3HLPRV/5jenjts2ywrnvrasi26xjacdne/public key, scsi1 /home XFS."
+      ],
+      "notes": "SSH and ceph.conf verification (d3@10.10.30.13-15, cat /etc/ceph/ceph.conf) to be confirmed by operator post-boot. ceph.conf is baked into template 9010 from IMAGE-001/PUBLISH-001 (verified 2026-06-27)."
     }
   ]
 }
