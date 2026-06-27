@@ -1,9 +1,9 @@
 ---
-pve_qcow2_path: "/mnt/pve/cFS/import/rhel10-bootc-20260606.1.qcow2"
-pve_qcow2_sha256: "5efb97c95c9ce3045994551da3b9e5bda94a4100aefdb337922de6066d8d1b7c"
+pve_qcow2_path: "/var/tmp/rhel10-bootc-0.1.0.qcow2"
+pve_qcow2_sha256: ""
 
-pve_template_vmid: 9001
-pve_template_name: "rhel10-bootc-20260606-1-tmpl"
+pve_template_vmid: 9010
+pve_template_name: "rhel10-bootc-0.1.0-tmpl"
 pve_ceph_storage: "cephVM"
 
 pve_template_memory_mb: 4096
@@ -16,6 +16,8 @@ pve_template_pre_enrolled_keys: 0
 pve_template_scsihw: "virtio-scsi-single"
 pve_template_bridge: "vmbr0"
 pve_template_ostype: "l26"
+
+pve_home_disk_size_gb: 20
 
 pve_template_destroy_existing: true
 pve_template_allow_replace_any: false

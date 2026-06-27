@@ -169,6 +169,17 @@
       - "{{ pve_imported_disk_volid }},discard=on,ssd=1,iothread=1"
   changed_when: true
 
+- name: Create and attach /home data disk on Ceph storage
+  ansible.builtin.command:
+    argv:
+      - qm
+      - set
+      - "{{ pve_template_vmid }}"
+      - --scsi1
+      - "{{ pve_ceph_storage }}:{{ pve_home_disk_size_gb }},format=raw"
+  when: pve_home_disk_size_gb | int > 0
+  changed_when: true
+
 - name: Attach cloud-init drive
   ansible.builtin.command:
     argv:
@@ -196,9 +207,25 @@
     content: |
       #cloud-config
       # Installed by the bootc_proxmox_template role.
-      # Creates a systemd shutdown service that runs 'cloud-init clean --logs'
-      # before each power-off so the next boot is treated as a fresh instance,
-      # ensuring cloud-init always re-applies the Proxmox-delivered config.
+      # (1) Partitions and mounts the /home data disk (scsi1 -> /dev/sdb) on first
+      #     boot. disk_setup/fs_setup use overwrite:false so they are idempotent
+      #     across reboots even with stateless cloud-init.
+      # (2) Installs a systemd shutdown service that runs 'cloud-init clean --logs'
+      #     before each power-off so the next boot is treated as a fresh instance,
+      #     ensuring cloud-init always re-applies the Proxmox-delivered config.
+      disk_setup:
+        /dev/sdb:
+          table_type: gpt
+          layout: true
+          overwrite: false
+      fs_setup:
+        - label: home
+          filesystem: xfs
+          device: /dev/sdb
+          partition: auto
+          overwrite: false
+      mounts:
+        - [LABEL=home, /home, xfs, defaults, 0, 0]
       write_files:
         - path: /etc/systemd/system/cloud-init-stateless.service
           permissions: '0644'

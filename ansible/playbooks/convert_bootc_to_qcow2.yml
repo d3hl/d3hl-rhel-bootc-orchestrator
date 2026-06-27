@@ -11,14 +11,20 @@
     # recursive loop under current ansible-core and fails the play.
     bootc_build_dir: /tmp/bootc-build
     bootc_qcow2_output_dir: /tmp/bootc-qcow2-out
+    # Pass bootc_image_ref directly via -e to convert a specific tag without
+    # constructing it from bootc_base_image + image_tag (e.g. static Containerfile
+    # flow: -e bootc_image_ref=quay.io/ncdv/rhel10-base:0.1.0).
     bootc_image_ref: "{{ bootc_base_image | regex_replace(':.*$', '') }}:{{ image_tag }}"
     bootc_image_builder_image: registry.redhat.io/rhel9/bootc-image-builder:latest
   tasks:
-    - name: Require rendered config.toml in build directory
+    - name: Check for optional config.toml in build directory
       ansible.builtin.stat:
         path: "{{ bootc_build_dir }}/config.toml"
       register: bootc_config_stat
-      failed_when: not bootc_config_stat.stat.exists
+
+    - name: Set bootc_has_config fact
+      ansible.builtin.set_fact:
+        bootc_has_config: "{{ bootc_config_stat.stat.exists }}"
 
     - name: Ensure qcow2 output directory exists
       ansible.builtin.file:
@@ -28,27 +34,20 @@
 
     - name: Convert OCI image to qcow2 with bootc-image-builder
       ansible.builtin.command:
-        argv:
-          - podman
-          - run
-          - --rm
-          - --privileged
-          - --pull=never
-          - --network=host
-          - --security-opt
-          - label=type:unconfined_t
-          - -v
-          - "{{ bootc_build_dir }}/config.toml:/config.toml:ro"
-          - -v
-          - "{{ bootc_qcow2_output_dir }}:/output"
-          - -v
-          - /var/lib/containers/storage:/var/lib/containers/storage
-          - "{{ bootc_image_builder_image }}"
-          - --type
-          - qcow2
-          - --config
-          - /config.toml
-          - "{{ bootc_image_ref }}"
+        argv: >-
+          {{
+            ['podman', 'run', '--rm', '--privileged',
+             '--pull=never', '--network=host',
+             '--security-opt', 'label=type:unconfined_t']
+            + (['-v', bootc_build_dir ~ '/config.toml:/config.toml:ro']
+               if bootc_has_config else [])
+            + ['-v', bootc_qcow2_output_dir ~ ':/output',
+               '-v', '/var/lib/containers/storage:/var/lib/containers/storage',
+               bootc_image_builder_image,
+               '--type', 'qcow2']
+            + (['--config', '/config.toml'] if bootc_has_config else [])
+            + [bootc_image_ref]
+          }}
       become: true
       changed_when: true
 
@@ -64,4 +63,5 @@
           - "qcow2 path: {{ bootc_qcow2_output_dir }}/qcow2/disk.qcow2"
           - "qcow2 size bytes: {{ bootc_qcow2_stat.stat.size }}"
           - "image ref: {{ bootc_image_ref }}"
+          - "config.toml used: {{ bootc_has_config }}"
       changed_when: false
