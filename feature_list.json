@@ -281,7 +281,7 @@
         "IMAGE-001",
         "PUBLISH-001"
       ],
-      "status": "not_started",
+      "status": "passing",
       "verification": [
         "ansible-playbook --syntax-check ansible/playbooks/register_bootc_proxmox_template.yml succeeds",
         "ansible-playbook --syntax-check ansible/playbooks/convert_bootc_to_qcow2.yml succeeds",
@@ -290,7 +290,10 @@
         "live: qm config 9010 shows template:1, bios:ovmf, machine:q35, scsihw:virtio-scsi-single, scsi0 (boot), scsi1 (20G /home), ide2 (cloudinit), cicustom:vendor=local:snippets/bootc-stateless-vendor.yaml",
         "live: /var/lib/vz/snippets/bootc-stateless-vendor.yaml on nodeF contains disk_setup+mounts block"
       ],
-      "evidence": [],
+      "evidence": [
+        "2026-06-27 convert: ansible-playbook convert_bootc_to_qcow2.yml -e bootc_image_ref=quay.io/ncdv/rhel10-base:0.1.0 -e bootc_qcow2_output_dir=/var/tmp/bootc-qcow2-out-9010 -> ok=6 changed=2; disk.qcow2 1448935424 bytes, sha256 c0843c2213d6c6d54808ba0a320509771b081473d5ee533475d6e56f45d10e08. config.toml not required (static Containerfile flow). Remote sha256 on nodeF matched.",
+        "2026-06-27 LIVE REGISTRATION (operator-approved). ansible-playbook register_bootc_proxmox_template.yml -e pve_template_node=nodeF -e pve_template_vmid=9010 -e pve_template_name=rhel10-bootc-0.1.0-tmpl -e pve_qcow2_sha256=c0843c22... -e pve_ceph_storage=cephVM -e pve_template_bridge=vmbr0 -e pve_template_remove_qcow2_after_import=true -> nodeF ok=21 changed=10. qm config 9010: template=1, bios=ovmf, machine=q35, scsihw=virtio-scsi-single, cpu=host, cores=2, memory=4096, scsi0=cephVM:base-9010-disk-1 (10G, discard, iothread, ssd), scsi1=cephVM:base-9010-disk-2 (20G /home), efidisk0=cephVM:base-9010-disk-0 (1M, 4m efi), ide2=cephVM:vm-9010-cloudinit, cicustom=vendor=local:snippets/bootc-stateless-vendor.yaml, net0=virtio bridge=vmbr0, agent=enabled+fstrim. Staged qcow2 removed from nodeF."
+      ],
       "notes": "Reset 2026-06-27. Rebuilding from scratch targeting VMID 9010 on nodeF from quay.io/ncdv/rhel10-base:0.1.0 (PUBLISH-001). Key changes: (1) convert_bootc_to_qcow2.yml config.toml is now optional (no render step needed); (2) role adds 20 GB scsi1 /home disk; (3) vendor-data includes disk_setup/fs_setup/mounts for /dev/sdb->XFS /home (overwrite:false, idempotent with stateless cloud-init). VMIDs 9001/9002 history archived in git log."
     },
     {
