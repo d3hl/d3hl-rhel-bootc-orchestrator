@@ -8,6 +8,13 @@ locals {
       null
     )
   }
+  sghlrhkmd_ipv4 = {
+    for name, vm in proxmox_virtual_environment_vm.sghlrhkmd :
+    name => try(
+      [for ip in flatten(vm.ipv4_addresses) : ip if ip != "127.0.0.1"][0],
+      null
+    )
+  }
 }
 
 output "rhvm_vms" {
@@ -31,6 +38,18 @@ output "rhvm_names" {
 # file with the generator under ansible/inventories/ (terraform output -json
 # ansible_inventory). Ansible consumes Terraform outputs; it does not
 # re-provision.
+output "sghlrhkmd_vms" {
+  description = "Provisioned sg-hl-rhkmd VMs: name => { node, id, ipv4 }."
+  value = {
+    for name, vm in proxmox_virtual_environment_vm.sghlrhkmd :
+    name => {
+      node = vm.node_name
+      id   = vm.vm_id
+      ipv4 = local.sghlrhkmd_ipv4[name]
+    }
+  }
+}
+
 output "ansible_inventory" {
   description = "bootc_targets inventory hosts, keyed by VM name, for the Ansible handoff."
   value = {

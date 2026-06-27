@@ -79,6 +79,57 @@
       "notes": "Live deployment remains out of scope until separately approved."
     },
     {
+      "id": "TF-001",
+      "priority": 6,
+      "area": "terraform",
+      "title": "Scaffold HCP Terraform Proxmox-first provisioning contract",
+      "description": "Terraform environment and module skeletons describe Proxmox-first bootc VM resources without live apply.",
+      "user_visible_behavior": "Provisioning shape is reviewable as code before HCP Terraform integration is enabled.",
+      "dependencies": [
+        "ARCH-001"
+      ],
+      "status": "passing",
+      "verification": [
+        "terraform fmt -check -recursive succeeds",
+        "terraform validate succeeds with backend disabled where environments exist",
+        "./init.sh succeeds"
+      ],
+      "evidence": [
+        "2026-06-12: terraform fmt -check -recursive terraform -> rc 0",
+        "2026-06-12: terraform -chdir=terraform/environments/dev init -backend=false + validate -> Success! The configuration is valid.",
+        "2026-06-12: terraform -chdir=terraform/modules/proxmox-bootc-vm init -backend=false + validate -> Success! The configuration is valid.",
+        "2026-06-12: ./init.sh -> rc 0 (terraform section validates both dirs; provider bpg/proxmox 0.109.0 resolved)"
+      ],
+      "notes": "No live HCP Terraform plan or apply in this feature. Uses preferred bpg/proxmox provider, pinned ~> 0.109; no provider credentials in repo .tf."
+    },
+    {
+      "id": "TF-002",
+      "priority": 6,
+      "area": "terraform",
+      "title": "Make dev Terraform apply-ready and add HCP apply runbook",
+      "description": "Fix the dev environment so it validates and can be applied: correct bpg/proxmox schema, restore the cloud-init template, real node/storage/bridge/secret values, and document the gated operator apply procedure.",
+      "user_visible_behavior": "An operator can run the documented HCP Terraform plan/apply for the three dev bootc VMs; live apply stays gated behind explicit approval and recorded pre-check evidence.",
+      "dependencies": [
+        "TF-001",
+        "PVE-TEMPLATE-001"
+      ],
+      "status": "passing",
+      "verification": [
+        "terraform fmt -check -recursive succeeds",
+        "terraform validate succeeds for terraform/environments/dev and the module",
+        "./init.sh succeeds",
+        "docs/runbooks/proxmox-bootc-apply.md documents the gated apply with read-only pre-checks separated from live apply"
+      ],
+      "evidence": [
+        "2026-06-14: corrected dev defects from the crew write: removed duplicate required_providers (main.tf vs versions.tf); proxmox_virtual_environment_file uses node_name + datastore_id (var.rhvm_snippet_datastore=cFS); proxmox_virtual_environment_vm disk uses datastore_id=var.rhvm_storage (cephVM), interface=scsi0, numeric size; created terraform/environments/dev/cloudinit-user-data.yaml.tftpl; rewrote outputs.tf to use proxmox_virtual_environment_vm.rhvm (dropped dangling module.bootc_vm); rhvm_list/rhvm_hosts set to rhvm-01=nodeA, rhvm-02=nodeB, rhvm-03=nodeD; bridge=vsvc; ci_ssh_public_key=op://d3HLPRV/d3_ops/public key; cloud project=bootc, org=ncdv, workspace=Komodo.",
+        "2026-06-14: terraform fmt -check -recursive terraform -> rc 0",
+        "2026-06-14: terraform -chdir=terraform/environments/dev init -backend=false + validate -> Success! The configuration is valid.",
+        "2026-06-14: ./init.sh -> exit 0 (terraform validate passed for terraform/environments/dev and terraform/modules/proxmox-bootc-vm)",
+        "2026-06-14: docs/runbooks/proxmox-bootc-apply.md added (HCP org ncdv / project bootc / workspace Komodo, op:// variable-set references, read-only pre-checks, gated apply, rollback)."
+      ],
+      "notes": "No live HCP plan/apply was run in this feature. Live apply remains gated: operator must set HCP workspace variable sets (proxmox_api_token, ci_ssh_public_key, proxmox_api_url), enable 'snippets' content on cFS for nodeA/nodeB/nodeD, and resolve provider insecure/TLS before apply. The terraform/modules/proxmox-bootc-vm skeleton is no longer used by dev."
+    },
+    {
       "id": "TF-003",
       "priority": 10,
       "area": "terraform",
@@ -314,6 +365,27 @@
         "2026-06-17 LIVE BUILD+PUSH through the new role (operator-approved). op run --env-file images/op-run.build.example -- ansible-playbook render_bootc_image_context.yml then bootc_build.yaml -e bootc_build_tag=rhel10-bootc-20260617.3 -e bootc_base_image=registry.redhat.io/rhel10/rhel-bootc:latest: bootc_build built quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3 (RHSM passed as --secret src tempfiles, removed after). In-image (podman run --network=none): qemu-guest-agent.service/cloud-init.service/sshd.service all 'enabled'; qemu-guest-agent-10.1.0 + cloud-init-24.4 installed; subscription-manager 'not yet registered', 0 entitlement certs, 0 consumer certs, 0 /run/secrets (no leak). bootc_publish then pushed it: pushed digest sha256:5ed9875c30388e30d4d88c38e6c488e022c7b8d02c8515b9599f6ce8715071b9. ./init.sh -> static baseline complete."
       ],
       "notes": "Done and live-verified through the role: render -> bootc_build -> bootc_publish produced quay.io/ncdv/rhel10-base:rhel10-bootc-20260617.3. The local script /tmp/build_and_push_rhel10.sh is retired. Reuses the temp-secret/no_log/cleanup idiom from bootc_publish and the become+argv + require-rendered-context idiom from convert_bootc_to_qcow2.yml. bootc_build does not render and does not push, matching the single-responsibility split of the other stages. RHSM build secret reference op://d3HL/<Red Hat Console: ndcv-org UUID>/{username,password}; Quay robot creds op://d3HLPRV/Quay/{robot,robot_password}. Folding the bootc_build_dir base default toward registry.redhat.io (build-vars still defaults to satellite) is a possible follow-up."
+    },
+    {
+      "id": "TF-004",
+      "priority": 5,
+      "area": "terraform",
+      "title": "Provision sg-hl-rhkmd-01/02/03 VMs 301-303 from template 9010",
+      "description": "HCP Terraform provisions three new bootc VMs (sg-hl-rhkmd-01/02/03, VMIDs 301-303) from template 9010 (rhel10-bootc-0.1.1-tmpl, ceph.conf baked in). User d3 with SSH key from op://d3HLPRV/5jenjts2ywrnvrasi26xjacdne/public key. Same sizing/network/storage as rhvm VMs.",
+      "dependencies": [
+        "TF-003",
+        "PVE-TEMPLATE-001"
+      ],
+      "status": "not_started",
+      "verification": [
+        "terraform validate succeeds",
+        "./init.sh succeeds",
+        "terraform plan shows +3 proxmox_virtual_environment_vm +3 proxmox_virtual_environment_file",
+        "terraform apply completes; sghlrhkmd_vms output shows 3 IPs",
+        "SSH as d3@<ip> with key 5jenjts2ywrnvrasi26xjacdne succeeds",
+        "cat /etc/ceph/ceph.conf on each VM shows cluster config"
+      ],
+      "evidence": []
     }
   ]
 }

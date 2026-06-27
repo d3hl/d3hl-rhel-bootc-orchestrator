@@ -133,3 +133,53 @@ variable "rhvm_snippet_datastore" {
   type        = string
   default     = "cFS"
 }
+
+# --- sg-hl-rhkmd VM group ---
+
+variable "sghlrhkmd_list" {
+  description = "List of sg-hl-rhkmd VM hostnames"
+  type        = list(string)
+  default     = ["sg-hl-rhkmd-01", "sg-hl-rhkmd-02", "sg-hl-rhkmd-03"]
+}
+
+variable "sghlrhkmd_hosts" {
+  description = "Mapping of sg-hl-rhkmd VM names to Proxmox nodes"
+  type        = map(string)
+  default = {
+    sg-hl-rhkmd-01 = "nodeA"
+    sg-hl-rhkmd-02 = "nodeB"
+    sg-hl-rhkmd-03 = "nodeD"
+  }
+}
+
+variable "sghlrhkmd_vmids" {
+  description = "Explicit VMID per sg-hl-rhkmd VM (parallel clones require distinct IDs)"
+  type        = map(number)
+  default = {
+    sg-hl-rhkmd-01 = 301
+    sg-hl-rhkmd-02 = 302
+    sg-hl-rhkmd-03 = 303
+  }
+}
+
+variable "sghlrhkmd_template_vmid" {
+  description = "Proxmox template VMID for sg-hl-rhkmd VMs (9010 = rhel10-bootc-0.1.1-tmpl)"
+  type        = number
+  default     = 9010
+}
+
+variable "sghlrhkmd_template_node" {
+  description = "Proxmox node where template 9010 lives"
+  type        = string
+  default     = "nodeF"
+}
+
+variable "sg_ci_ssh_public_key" {
+  description = <<-EOT
+    SSH public key for cloud-init user d3 on sg-hl-rhkmd VMs.
+    Set via an HCP sensitive workspace variable mapped to
+    op://d3HLPRV/5jenjts2ywrnvrasi26xjacdne/public key.
+  EOT
+  type        = string
+  sensitive   = true
+}
