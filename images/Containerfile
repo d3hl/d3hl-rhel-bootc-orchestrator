@@ -1,0 +1,40 @@
+ARG BOOTC_BASE_IMAGE=registry.redhat.io/rhel10/rhel-bootc:latest
+FROM ${BOOTC_BASE_IMAGE}
+
+ARG IMAGE_TAG=0.1.0
+LABEL org.d3hl.bootc.image-tag="${IMAGE_TAG}"
+
+# Install entitled packages via RHSM build secrets. Registers, enables repos,
+# installs, then always unregisters + cleans in one layer so no RHSM state or
+# credentials persist in any image layer.
+#
+# ceph-common is not in BaseOS/AppStream — requires rhceph-9-tools-for-rhel-10-x86_64-rpms
+# (RHCS 9 = Ceph 20 tentacle, matching the Proxmox cluster).
+# nfs-utils is the RHEL equivalent of Debian nfs-common.
+RUN --mount=type=secret,id=rhsm_user --mount=type=secret,id=rhsm_pass \
+    subscription-manager register \
+      --username "$(cat /run/secrets/rhsm_user)" \
+      --password "$(cat /run/secrets/rhsm_pass)" \
+ && { subscription-manager repos \
+        --enable=rhceph-9-tools-for-rhel-10-x86_64-rpms \
+ && dnf -y install \
+        qemu-guest-agent \
+        cloud-init \
+        zsh \
+        git \
+        ceph-common \
+        nfs-utils \
+ && dnf clean all ; } ; \
+    rc=$? ; \
+    subscription-manager unregister || true ; \
+    subscription-manager clean || true ; \
+    exit $rc
+
+# Auto-load the CephFS kernel module at boot so kernel-native cephfs mounts
+# work without a manual modprobe call (must precede keyctl + mount in CEPH-MOUNT-001).
+RUN echo "ceph" > /etc/modules-load.d/ceph.conf
+
+RUN systemctl enable \
+        qemu-guest-agent.service \
+        cloud-init.service \
+        sshd.service

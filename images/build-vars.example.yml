@@ -2,7 +2,7 @@
 # Copy to a local, uncommitted vars file or pass with -e @path before render.
 # Do not commit resolved SSH key values.
 
-bootc_base_image: satellite.d3hl.site/ncdv/dev/rhel10-img/rhel_10_image_mode/d3-homelab:rhel10-bootc
+bootc_base_image: registry.redhat.io/rhel10/rhel-bootc:latest
 image_tag: rhel10-bootc-YYYYMMDD.N
 
 # Bake entitled packages (needs RH entitlement at build time). When true, the
@@ -15,15 +15,18 @@ bootc_entitled_packages:
   - cloud-init
   - zsh
   - git
+  - ceph-common
+  - nfs-utils
 bootc_entitled_services:
   - qemu-guest-agent.service
   - cloud-init.service
 
 # Entitlement repos to enable before installing (disabled-by-default repos).
-# ceph-common is NOT in BaseOS/AppStream — add rhceph-9-tools-for-rhel-10-x86_64-rpms
-# here and ceph-common to bootc_entitled_packages to include the Ceph 20 (tentacle)
-# client that matches the Proxmox cluster's Ceph 20.x.
-bootc_entitled_repos: []
+# ceph-common is NOT in BaseOS/AppStream — rhceph-9-tools-for-rhel-10-x86_64-rpms
+# provides Ceph 20 (tentacle) client matching the Proxmox cluster's Ceph 20.x.
+# nfs-utils is the RHEL equivalent of Debian nfs-common.
+bootc_entitled_repos:
+  - rhceph-9-tools-for-rhel-10-x86_64-rpms
 
 bootc_operator_username: d3
 bootc_operator_groups:
