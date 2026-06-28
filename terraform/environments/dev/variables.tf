@@ -182,5 +182,5 @@ variable "sg_ci_ssh_public_key" {
   EOT
   type        = string
   sensitive   = true
-  default     = "op://d3HLPRV/5jenjts2ywrnvrasi26xjacdne/public key"
+  default     = "op://d3HLPRV/d3_ops/public key"
 }
