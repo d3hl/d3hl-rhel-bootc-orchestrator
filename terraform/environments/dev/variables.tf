@@ -177,9 +177,10 @@ variable "sghlrhkmd_template_node" {
 variable "sg_ci_ssh_public_key" {
   description = <<-EOT
     SSH public key for cloud-init user d3 on sg-hl-rhkmd VMs.
-    Set via an HCP sensitive workspace variable mapped to
-    op://d3HLPRV/5jenjts2ywrnvrasi26xjacdne/public key.
+    References op://d3HLPRV/5jenjts2ywrnvrasi26xjacdne/public key — resolved by
+    HCP Terraform's 1Password integration at apply time.
   EOT
   type        = string
   sensitive   = true
+  default     = "op://d3HLPRV/5jenjts2ywrnvrasi26xjacdne/public key"
 }
